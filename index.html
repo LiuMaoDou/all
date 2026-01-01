@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI工具集导航 (Cloud修复版)</title>
+    <title>AI工具集导航 (Cloud透明版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* --- 样式部分保持不变 --- */
+        /* --- 样式部分 --- */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f5f7fa; height: 100vh; overflow: hidden; }
         .container { display: flex; height: 100vh; }
@@ -38,7 +38,30 @@
         .tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
         .tool-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: all 0.3s; position: relative; display: flex; align-items: flex-start; gap: 16px; cursor: pointer; text-decoration: none; color: inherit; }
         .tool-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); transform: translateY(-2px); }
-        .tool-logo { width: 56px; height: 56px; min-width: 56px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); border-radius: 12px; color: white; flex-shrink: 0; overflow: hidden; }
+        
+        /* --- 修改部分：Tool Logo 样式 --- */
+        .tool-logo { 
+            width: 56px; 
+            height: 56px; 
+            min-width: 56px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            
+            /* 修改1：背景改为透明，去掉渐变蓝色 */
+            background: transparent; 
+            /* 增加一个淡灰色边框，让它看起来还有个形状（可选） */
+            border: 1px solid #e5e7eb; 
+
+            border-radius: 12px; 
+            
+            /* 修改2：文字颜色改为深灰，否则在白色背景下看不见 */
+            color: #1f2937; 
+            
+            flex-shrink: 0; 
+            overflow: hidden; 
+        }
+        
         .tool-logo img { width: 100%; height: 100%; object-fit: cover; }
         .tool-logo-emoji { font-size: 28px; }
         .tool-content { flex: 1; min-width: 0; }
@@ -78,7 +101,7 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h1>AI工具集</h1>
-                <p>One Table Edition</p>
+                <p>透明版</p>
             </div>
             <div class="nav-list" id="navList">
                 <div class="loading">加载中...</div>
@@ -305,19 +328,16 @@
             else await fetchData();
         }
 
-        // --- 编辑功能 (核心修复) ---
+        // --- 编辑功能 ---
         function editTool(toolId) {
-            // 注意：toolId 传进来是字符串
             let tool = null;
-            // 查找工具（需要转换类型比较，或者直接字符串比较）
             for (const cat of categories) {
-                // t.id 是数字或字符串，这里用 == 进行宽松比较
                 const found = cat.tools.find(t => t.id == toolId);
                 if (found) { tool = found; break; }
             }
             
             if (tool) {
-                editingToolId = toolId; // 保存 ID
+                editingToolId = toolId;
                 document.getElementById('editLogo').value = tool.logo || '';
                 document.getElementById('editName').value = tool.name || '';
                 document.getElementById('editDescription').value = tool.description || '';
@@ -343,7 +363,7 @@
             const { error } = await client
                 .from('ai_nav_flat')
                 .update(updates)
-                .eq('id', editingToolId); // 使用 ID 更新
+                .eq('id', editingToolId);
 
             btn.textContent = '保存修改';
             btn.disabled = false;
@@ -352,7 +372,7 @@
                 alert('保存失败: ' + error.message);
             } else {
                 document.getElementById('editModal').classList.remove('show');
-                await fetchData(); // 重新拉取数据以刷新界面
+                await fetchData();
             }
         });
 
