@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI工具集导航 (Pro Max 筛选版)</title>
+    <title>AI工具集导航 (Pro Max 终极美化版)</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
     
@@ -33,7 +33,7 @@
             overflow: hidden; 
         }
 
-        /* 自定义滚动条样式 */
+        /* 滚动条样式 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 4px; }
@@ -61,7 +61,6 @@
         
         .sidebar-footer { padding: 16px; border-top: 1px solid #f3f4f6; }
         
-        /* --- 修改点 1：编辑按钮字体加粗 --- */
         .edit-toggle { 
             width: 100%; 
             padding: 12px; 
@@ -71,7 +70,7 @@
             border-radius: 10px; 
             cursor: pointer; 
             font-size: 14px; 
-            font-weight: 700; /* 加粗 */
+            font-weight: 700; 
             transition: background 0.2s; 
             font-family: inherit; 
         }
@@ -133,11 +132,7 @@
             font-size: 10px;
             transition: all 0.2s;
         }
-        .sort-btn:hover { 
-            background: white; 
-            color: #7c3aed;
-            transform: scale(1.1);
-        }
+        .sort-btn:hover { background: white; color: #7c3aed; transform: scale(1.1); }
 
         .category-rename-input { font-size: 18px; font-weight: 700; color: white; border: none; border-bottom: 1px dashed rgba(255,255,255,0.6); background: transparent; text-align: left; width: auto; min-width: 100px; outline: none; font-family: inherit; }
         .category-rename-input::placeholder { color: rgba(255,255,255,0.7); }
@@ -183,11 +178,53 @@
         .tool-name { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 4px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tool-description { font-size: 12px; color: #6b7280; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
         
-        .tool-edit-footer { display: flex; border-top: 1px solid #f3f4f6; background: #fafafa; }
-        .tool-edit-btn { flex: 1; border: none; background: transparent; padding: 8px 0; font-size: 12px; color: #6b7280; cursor: pointer; transition: all 0.2s; font-weight: 500; font-family: inherit; }
-        .tool-edit-btn:hover { background: #f3f4f6; color: #7c3aed; }
-        .tool-edit-btn.delete:hover { background: #fee2e2; color: #ef4444; }
-        .btn-separator { width: 1px; background: #e5e7eb; }
+        /* --- 核心修改：美化后的工具栏 --- */
+        .tool-edit-footer { 
+            display: flex; 
+            justify-content: space-between; /* 两端对齐，分组显示 */
+            align-items: center;
+            padding: 8px 12px; /* 增加内边距 */
+            background: #f9fafb; /* 极淡的灰色背景 */
+            border-top: 1px solid #f3f4f6;
+        }
+        
+        /* 按钮组 */
+        .edit-group {
+            display: flex;
+            gap: 4px; /* 按钮间距 */
+        }
+
+        .tool-edit-btn { 
+            width: 28px;
+            height: 28px;
+            border-radius: 6px; /* 圆角矩形 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: #9ca3af; /* 默认浅灰色图标 */
+            cursor: pointer; 
+            transition: all 0.2s; 
+        }
+        
+        .tool-edit-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* 悬停效果 */
+        .tool-edit-btn:hover { background: #e5e7eb; color: #4b5563; }
+        
+        /* 特定按钮颜色 */
+        .tool-edit-btn.move:hover { background: #f3f4f6; color: #7c3aed; /* 移动变紫 */ }
+        .tool-edit-btn.edit:hover { background: #dbeafe; color: #2563eb; /* 编辑变蓝 */ }
+        .tool-edit-btn.delete:hover { background: #fee2e2; color: #ef4444; /* 删除变红 */ }
 
         .add-tool-card { background: #f9fafb; border: 2px dashed #d1d5db; display: none; flex-direction: column; gap: 8px; cursor: default; padding: 12px; }
         .add-tool-card.show { display: flex; }
@@ -313,21 +350,17 @@
                 tools: group.tools
             }));
             
-            // 如果当前分类是 null 或者不存在于新数据中，重置为 '所有'
             if (!activeCategoryName) {
                 activeCategoryName = '所有';
             }
         }
 
         // --- 2. 渲染视图 ---
-        // --- 修改点 2：渲染导航栏，增加“所有”选项 ---
         function renderNav() {
             const navList = document.getElementById('navList');
             
-            // 构建 HTML 字符串
             let html = '';
 
-            // 1. 添加“所有”选项
             html += `
                 <div class="nav-item ${activeCategoryName === '所有' ? 'active' : ''}" onclick="switchCategory('所有')">
                     <span>所有</span>
@@ -335,7 +368,6 @@
             `;
 
             if (categories.length > 0) {
-                // 2. 添加其他分类
                 html += categories.map(cat => `
                     <div class="nav-item ${cat.name === activeCategoryName ? 'active' : ''}" onclick="switchCategory('${cat.name}')">
                         <span>${cat.name}</span>
@@ -346,7 +378,6 @@
                 html += '<div style="text-align:center; padding:10px; color:#999;">暂无分类</div>';
             }
 
-            // 3. 添加分类输入框
             if (isEditMode) {
                 html += getAddCategoryHtml();
             }
@@ -361,7 +392,6 @@
                     </div>`;
         }
 
-        // --- 修改点 3：渲染主内容，根据 activeCategoryName 过滤 ---
         function renderTools() {
             const mainContent = document.getElementById('mainContent');
             
@@ -370,7 +400,6 @@
                  return;
             }
 
-            // 确定要显示的分类列表
             let displayCategories = [];
             if (activeCategoryName === '所有') {
                 displayCategories = categories;
@@ -387,7 +416,6 @@
             }
 
             mainContent.innerHTML = `<div class="content-wrapper">` + displayCategories.map((cat, index) => {
-                // 查找该分类在原始 categories 数组中的真实索引，用于排序函数
                 const realIndex = categories.findIndex(c => c.name === cat.name);
                 
                 return `
@@ -412,7 +440,7 @@
                         <span class="category-count">${cat.tools.length} 个工具</span>
                     </div>
                     <div class="tools-grid">
-                        ${cat.tools.map(tool => `
+                        ${cat.tools.map((tool, toolIndex) => `
                             <a href="${tool.url || '#'}" target="_blank" class="tool-card" ${!tool.url ? 'onclick="return false;"' : ''}>
                                 <div class="tool-card-body">
                                     <div class="tool-logo">${renderLogo(tool.logo)}</div>
@@ -424,9 +452,22 @@
                                 </div>
                                 ${isEditMode ? `
                                     <div class="tool-edit-footer" onclick="event.preventDefault();">
-                                        <button class="tool-edit-btn" onclick="event.preventDefault(); editTool('${tool.id}')">编辑</button>
-                                        <div class="btn-separator"></div>
-                                        <button class="tool-edit-btn delete" onclick="event.preventDefault(); deleteTool('${tool.id}')">删除</button>
+                                        <div class="edit-group">
+                                            <button class="tool-edit-btn move" onclick="event.preventDefault(); moveTool('${cat.name}', ${toolIndex}, -1)" title="向前">
+                                                <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>
+                                            </button>
+                                            <button class="tool-edit-btn move" onclick="event.preventDefault(); moveTool('${cat.name}', ${toolIndex}, 1)" title="向后">
+                                                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg>
+                                            </button>
+                                        </div>
+                                        <div class="edit-group">
+                                            <button class="tool-edit-btn edit" onclick="event.preventDefault(); editTool('${tool.id}')" title="编辑">
+                                                <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                            </button>
+                                            <button class="tool-edit-btn delete" onclick="event.preventDefault(); deleteTool('${tool.id}')" title="删除">
+                                                <svg viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                            </button>
+                                        </div>
                                     </div>
                                 ` : ''}
                             </a>
@@ -486,14 +527,12 @@
                 else {
                     input.value = '';
                     await fetchData();
-                    // 保持停留在当前分类或者切换到新分类，这里选择切换到新分类
                     activeCategoryName = name;
                     renderNav();
                 }
             }
         }
 
-        // 排序移动
         async function moveCategory(index, direction) {
             const targetIndex = index + direction;
             if (targetIndex < 0 || targetIndex >= categories.length) return;
@@ -501,7 +540,6 @@
             const currentCat = categories[index];
             const targetCat = categories[targetIndex];
 
-            // 乐观更新 UI
             const tempOrder = currentCat.sortOrder;
             currentCat.sortOrder = targetCat.sortOrder;
             targetCat.sortOrder = tempOrder;
@@ -511,7 +549,6 @@
             renderNav();
             renderTools();
 
-            // 数据库更新
             try {
                 const update1 = client
                     .from('ai_nav_flat')
@@ -527,6 +564,39 @@
             } catch (error) {
                 console.error('排序更新失败', error);
                 await fetchData();
+            }
+        }
+        
+        async function moveTool(categoryName, toolIndex, direction) {
+            const cat = categories.find(c => c.name === categoryName);
+            if (!cat) return;
+            
+            const targetIndex = toolIndex + direction;
+            if (targetIndex < 0 || targetIndex >= cat.tools.length) return;
+            
+            const currentTool = cat.tools[toolIndex];
+            const targetTool = cat.tools[targetIndex];
+            
+            const tempOrder = currentTool.sort_order;
+            if (currentTool.sort_order === targetTool.sort_order) {
+                currentTool.sort_order = toolIndex; 
+                targetTool.sort_order = targetIndex; 
+            } else {
+                currentTool.sort_order = targetTool.sort_order;
+                targetTool.sort_order = tempOrder;
+            }
+            
+            cat.tools[toolIndex] = targetTool;
+            cat.tools[targetIndex] = currentTool;
+            renderTools();
+            
+            try {
+                const update1 = client.from('ai_nav_flat').update({ sort_order: currentTool.sort_order }).eq('id', currentTool.id);
+                const update2 = client.from('ai_nav_flat').update({ sort_order: targetTool.sort_order }).eq('id', targetTool.id);
+                await Promise.all([update1, update2]);
+            } catch (error) {
+                 console.error('工具排序更新失败', error);
+                 await fetchData();
             }
         }
 
@@ -553,11 +623,10 @@
                     inputElement.value = oldName;
                 } else {
                     await fetchData();
-                    // 如果重命名的是当前选中的分类，更新 activeCategoryName
                     if (activeCategoryName === oldName) {
                         activeCategoryName = newName;
                     }
-                    renderNav(); // 重新渲染导航栏以更新名字
+                    renderNav();
                 }
             } else {
                 inputElement.value = oldName;
@@ -570,7 +639,6 @@
                 const { error } = await client.from('ai_nav_flat').delete().eq('category', categoryName);
                 if (error) alert('删除失败: ' + error.message);
                 else {
-                    // 如果删除的是当前选中的分类，切换回“所有”
                     if (activeCategoryName === categoryName) {
                         activeCategoryName = '所有';
                     }
@@ -583,7 +651,9 @@
             const card = buttonElement.closest('.add-tool-card');
             
             const category = categories.find(c => c.name === categoryName);
-            const sortOrder = category ? category.sortOrder : 0;
+            const maxOrder = category.tools.length > 0 
+                ? Math.max(...category.tools.map(t => t.sort_order || 0)) 
+                : 0;
 
             const toolData = {
                 category: categoryName,
@@ -591,7 +661,7 @@
                 name: card.querySelector('.new-tool-name').value.trim(),
                 description: card.querySelector('.new-tool-desc').value.trim(),
                 url: card.querySelector('.new-tool-url').value.trim(),
-                sort_order: sortOrder
+                sort_order: maxOrder + 1
             };
             if (!toolData.name) return alert('工具名称不能为空');
             
@@ -657,12 +727,10 @@
             }
         }
 
-        // --- 修改点 4：切换分类函数 (不再是 scroll) ---
         function switchCategory(name) {
             activeCategoryName = name;
             renderNav();
             renderTools();
-            // 切换分类后，将内容区域滚动到顶部
             document.getElementById('mainContent').scrollTop = 0;
         }
         
@@ -674,8 +742,6 @@
         document.getElementById('cancelEdit').addEventListener('click', function() {
             document.getElementById('editModal').classList.remove('show');
         });
-
-        // 移除了 scroll 监听器，因为现在是切换显示，不再需要滚动监听来高亮导航
 
         fetchData();
     </script>
