@@ -278,8 +278,8 @@
         .modal-header { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; margin-bottom: 6px; font-size: 14px; font-weight: 500; color: var(--text-primary); }
-        .form-group input, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); border-radius: 6px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
-        .form-group input:focus, .form-group textarea:focus { border-color: var(--color-accent); outline: none; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--input-border); background: var(--input-bg); color: var(--text-primary); border-radius: 6px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--color-accent); outline: none; }
         .form-group textarea { resize: vertical; min-height: 80px; }
         .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
         .modal-actions button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; }
@@ -458,6 +458,10 @@
     <div class="modal" id="editModal">
         <div class="modal-content">
             <div class="modal-header">编辑工具</div>
+            <div class="form-group">
+                <label>所属分类</label>
+                <select id="editCategory"></select>
+            </div>
             <div class="form-group">
                 <label>Logo URL 或 Emoji</label>
                 <input type="text" id="editLogo" placeholder="https://... 或 🤖">
@@ -887,16 +891,36 @@
 
         function editTool(toolId) {
             let tool = null;
+            let currentCategory = null;
+
+            // 查找工具及其所属分类
             for (const cat of categories) {
                 const found = cat.tools.find(t => t.id == toolId);
-                if (found) { tool = found; break; }
+                if (found) { 
+                    tool = found; 
+                    currentCategory = cat.name;
+                    break; 
+                }
             }
+            
             if (tool) {
                 editingToolId = toolId;
+                
+                // 1. 填充分类下拉框
+                const categorySelect = document.getElementById('editCategory');
+                categorySelect.innerHTML = categories.map(c => 
+                    `<option value="${c.name}">${c.name}</option>`
+                ).join('');
+                
+                // 2. 选中当前分类
+                categorySelect.value = currentCategory;
+
+                // 3. 填充其他字段
                 document.getElementById('editLogo').value = tool.logo || '';
                 document.getElementById('editName').value = tool.name || '';
                 document.getElementById('editDescription').value = tool.description || '';
                 document.getElementById('editUrl').value = tool.url || '';
+                
                 document.getElementById('editModal').classList.add('show');
             } else {
                 alert('未找到该工具数据，ID: ' + toolId);
@@ -909,6 +933,7 @@
             btn.disabled = true;
 
             const updates = {
+                category: document.getElementById('editCategory').value, // 获取新分类
                 logo: document.getElementById('editLogo').value.trim(),
                 name: document.getElementById('editName').value.trim(),
                 description: document.getElementById('editDescription').value.trim(),
@@ -927,7 +952,7 @@
                 alert('保存失败: ' + error.message);
             } else {
                 document.getElementById('editModal').classList.remove('show');
-                await fetchData();
+                await fetchData(); // 重新拉取数据以更新视图（工具可能会移动到新分类）
             }
         });
 
