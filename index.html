@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>毛豆百脑汇</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
 	<link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     
@@ -255,11 +254,18 @@
             color: var(--text-secondary); 
             line-height: 1.5; 
             
-            /* 强制不换行，超出显示省略号 */
+            /* 默认单行截断 */
             white-space: nowrap; 
             overflow: hidden; 
             text-overflow: ellipsis; 
             display: block; 
+            transition: all 0.25s ease;
+        }
+        /* 悬停时显示完整描述 */
+        .tool-card:hover .tool-description {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
         }
         /* ------------------ */
         
@@ -479,8 +485,15 @@
                 <select id="editCategory"></select>
             </div>
             <div class="form-group">
-                <label>Logo URL 或 Emoji</label>
-                <input type="text" id="editLogo" placeholder="https://... 或 🤖">
+                <label>Logo（上传图片或输入 Emoji / URL）</label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="editLogo" placeholder="🤖 或 https://..." style="flex:1;">
+                    <label class="upload-btn" style="flex-shrink:0; cursor:pointer; padding:10px 14px; background:var(--color-accent); color:#fff; border-radius:6px; font-size:13px; font-weight:500; white-space:nowrap; transition:opacity .2s;">
+                        📷 上传
+                        <input type="file" id="editLogoFile" accept="image/*" style="display:none;">
+                    </label>
+                </div>
+                <div id="logoPreview" style="margin-top:8px;"></div>
             </div>
             <div class="form-group">
                 <label>工具名称</label>
@@ -502,11 +515,63 @@
     </div>
 
     <script>
-        // --- Supabase 配置 ---
-        const SUPABASE_URL = 'https://ynkxpjmpazmjdjtwpggq.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlua3hwam1wYXptamRqdHdwZ2dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY5MjExODEsImV4cCI6MjA4MjQ5NzE4MX0.WHgycb5URS_bzsO6WAgHHrDRAMVKOrnDhTlX7ELvo4w';
-        
-        const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // --- API 配置 ---
+        const API_BASE = '/api/ai_nav_flat';
+
+        async function apiGet() {
+            const res = await fetch(API_BASE);
+            if (!res.ok) throw new Error('Fetch failed');
+            const data = await res.json();
+            return { data, error: null };
+        }
+
+        async function apiPost(rows) {
+            const res = await fetch(API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rows)
+            });
+            if (!res.ok) return { error: { message: 'Insert failed' } };
+            return { error: null };
+        }
+
+        async function apiPatch(fields, eqFilters) {
+            const params = Object.entries(eqFilters).map(([k, v]) => `eq_${k}=${encodeURIComponent(v)}`).join('&');
+            const res = await fetch(`${API_BASE}?${params}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(fields)
+            });
+            if (!res.ok) return { error: { message: 'Update failed' } };
+            return { error: null };
+        }
+
+        async function apiDelete(eqFilters) {
+            const params = Object.entries(eqFilters).map(([k, v]) => `eq_${k}=${encodeURIComponent(v)}`).join('&');
+            const res = await fetch(`${API_BASE}?${params}`, { method: 'DELETE' });
+            if (!res.ok) return { error: { message: 'Delete failed' } };
+            return { error: null };
+        }
+
+        // Supabase 兼容客户端
+        const client = {
+            from(table) {
+                return {
+                    select: () => ({
+                        order: () => ({
+                            order: () => apiGet()
+                        })
+                    }),
+                    insert: (rows) => apiPost(rows),
+                    update: (fields) => ({
+                        eq: (col, val) => apiPatch(fields, { [col]: val })
+                    }),
+                    delete: () => ({
+                        eq: (col, val) => apiDelete({ [col]: val })
+                    })
+                };
+            }
+        };
 
         // --- 全局变量 ---
         let categories = []; 
@@ -685,7 +750,7 @@
 
         function getAddToolHtml(catName) {
             return `<div class="tool-card add-tool-card show">
-                    <input type="text" class="new-tool-logo" placeholder="Logo URL / Emoji">
+                    <input type="text" class="new-tool-logo" placeholder="Logo URL / Emoji / SVG">
                     <input type="text" class="new-tool-name" placeholder="名称">
                     <textarea class="new-tool-desc" placeholder="描述"></textarea>
                     <input type="url" class="new-tool-url" placeholder="网址">
@@ -697,12 +762,15 @@
         }
 
         function renderLogo(logo) {
-            if (logo && (logo.startsWith('http') || logo.startsWith('data:'))) {
-                return `<img src="${logo}" alt="logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span class="tool-logo-emoji" style="display:none;">🔧</span>`;
-            } else {
-                return `<span class="tool-logo-emoji">${logo || '🔧'}</span>`;
+            if (!logo) return `<span class="tool-logo-emoji">🔧</span>`;
+            if (logo.startsWith('<svg')) {
+                return `<span style="width:42px;height:42px;display:flex;align-items:center;justify-content:center;">${logo}</span>`;
             }
+            if (logo.startsWith('http') || logo.startsWith('/') || logo.startsWith('data:')) {
+                return `<img src="${logo}" alt="logo" style="width:42px;height:42px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="tool-logo-emoji" style="display:none;">🔧</span>`;
+            }
+            return `<span class="tool-logo-emoji">${logo}</span>`;
         }
 
         // --- 3. 交互逻辑 (CRUD) ---
@@ -938,6 +1006,9 @@
                 document.getElementById('editUrl').value = tool.url || '';
                 
                 document.getElementById('editModal').classList.add('show');
+
+                // 渲染 logo 预览
+                renderLogoPreview(tool.logo || '');
             } else {
                 alert('未找到该工具数据，ID: ' + toolId);
             }
@@ -994,6 +1065,61 @@
         
         document.getElementById('cancelEdit').addEventListener('click', function() {
             document.getElementById('editModal').classList.remove('show');
+        });
+
+        // --- Logo 图片上传 ---
+        const editLogoInput = document.getElementById('editLogo');
+        const editLogoFile = document.getElementById('editLogoFile');
+        const logoPreview = document.getElementById('logoPreview');
+
+        function renderLogoPreview(val) {
+            if (!val) { logoPreview.innerHTML = ''; return; }
+            if (val.startsWith('<svg')) {
+                logoPreview.innerHTML = `<span style="display:inline-flex;width:42px;height:42px;align-items:center;justify-content:center;border:1px solid var(--border-color);border-radius:8px;">${val}</span>`;
+            } else if (val.startsWith('http') || val.startsWith('/') || val.startsWith('data:')) {
+                logoPreview.innerHTML = `<img src="${val}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid var(--border-color);">`;
+            } else if (val.length <= 4) {
+                logoPreview.innerHTML = `<span style="font-size:28px;">${val}</span>`;
+            } else {
+                logoPreview.innerHTML = '';
+            }
+        }
+
+        editLogoInput.addEventListener('input', function() {
+            renderLogoPreview(this.value.trim());
+        });
+
+        editLogoFile.addEventListener('change', async function() {
+            const file = this.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // 显示上传状态
+            const btn = this.parentElement;
+            const origText = btn.textContent;
+            btn.textContent = '⏳ 上传中...';
+            btn.style.opacity = '0.6';
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || '上传失败');
+                }
+                const data = await res.json();
+                // 拼接完整 URL 用于存储（公网可访问）
+                const fullUrl = location.origin + data.url;
+                editLogoInput.value = fullUrl;
+                renderLogoPreview(fullUrl);
+            } catch (err) {
+                alert('图片上传失败: ' + err.message);
+            } finally {
+                btn.textContent = origText;
+                btn.style.opacity = '1';
+                this.value = ''; // 重置 file input
+            }
         });
 
         fetchData();

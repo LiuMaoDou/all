@@ -1,0 +1,7 @@
+__pycache__/
+all_nav.db
+all_nav.db-wal
+all_nav.db-shm
+uploads/
+*.pyc
+.env
