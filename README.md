@@ -21,6 +21,7 @@ Open [http://127.0.0.1:5231](http://127.0.0.1:5231). The same Flask application 
 - `styles.css`: responsive layouts and shared Morandi color tokens for light/dark themes.
 - `theme.js`: applies the saved theme before the stylesheet loads; otherwise follows the system preference, including live changes. Manual choices persist and sync between tabs.
 - `app.js`: API requests, grouped rendering, editing, ordering, and uploads. Stored text is escaped, and stored SVG markup is rendered in an image context.
+- `assets/`: locally served Ubuntu fonts and a small Lucide icon collection, with licenses and source information.
 - `api.py`: Flask application, validation, SQLite initialization/migration, and file serving. `create_app(config)` supports isolated test instances; `api:app` is the WSGI entry point.
 - `tests/test_api.py`: migration, CRUD, ordering, validation, rollback, and upload regression tests.
 - `all_nav.db` and `uploads/`: runtime data, excluded from Git. Cloning this repository does not copy existing bookmarks or logos.
@@ -32,6 +33,8 @@ The `ai_nav_flat` table retains the original fields: `id`, `category`, `name`, `
 `category_sort_order` is migrated automatically at startup. Migration preserves existing IDs, content, URLs, tool ordering, and the category order displayed by the old frontend. Subsequent startups leave the migrated ordering intact. Category names remain the grouping key; renaming/deleting a category affects all of its rows.
 
 Category order and tool order are independent. Reordering is committed in one SQLite transaction and rejects missing, duplicate, or foreign entries. A stale list receives HTTP 409 and should be reloaded. Concurrent complete reorder requests use the last successfully committed order.
+
+`category_icon` stores a randomly assigned Lucide icon for each category. Existing categories receive one on startup; new categories receive one when created. Unused icons are preferred until the collection is exhausted. The icon remains stable across reloads, renames, reordering, and removal of the last tool. Moving a tool adopts the destination category's icon. The “所有” view uses a fixed grid icon.
 
 ## Configuration
 
@@ -56,7 +59,7 @@ Uploads support PNG, JPEG, GIF, WebP, ICO, and SVG. The complete upload request 
 | `POST /api/reorder` | Categories: `{"kind":"categories","order":["B","A"]}`. Tools: `{"kind":"tools","category":"A","order":[3,1,2]}`. Include the entire current category/tool list. |
 | `POST /api/upload` | Multipart `file`; returns `{"url":"/uploads/<generated-name>"}`. |
 
-Errors return a JSON `error` string. Mutation filters support `eq_id` and `eq_category`. IDs, timestamps, and category ordering cannot be edited through generic PATCH requests. The old category-wide `sort_order` update must be replaced with `/api/reorder`; deploy the frontend and backend together.
+Errors return a JSON `error` string. Mutation filters support `eq_id` and `eq_category`. IDs, timestamps, category icons, and category ordering cannot be edited through generic PATCH requests. The old category-wide `sort_order` update must be replaced with `/api/reorder`; deploy the frontend and backend together.
 
 ## Tests
 
@@ -65,16 +68,16 @@ Errors return a JSON `error` string. Mutation filters support `eq_id` and `eq_ca
 node --check app.js && node --check theme.js  # optional, if Node.js is installed
 ```
 
-The tests use temporary databases and upload directories. They cover migration without losing legacy fields, reorder persistence, category moves, atomic rollback, malformed requests, unsafe link schemes, static file boundaries, and upload validation.
+The tests use temporary databases and upload directories. They cover migration without losing legacy fields, persistent category icons, reorder persistence, category moves, atomic rollback, malformed requests, unsafe link schemes, static file boundaries, and upload validation.
 
 ## Deployment and backup
 
-The built-in server is for local development. For a hosted instance, serve `api:app` with a production WSGI server and preserve the original Host header in the reverse proxy. Proxy all paths to the application to retain its upload security headers. If static files are served separately, include `app.js`, `theme.js`, and `styles.css`, and apply the same sandbox/content-type headers to uploads.
+The built-in server is for local development. For a hosted instance, serve `api:app` with a production WSGI server and preserve the original Host header in the reverse proxy. Proxy all paths to the application to retain its upload security headers. If static files are served separately, include `app.js`, `theme.js`, `styles.css`, and the `assets/` directory, and apply the same sandbox/content-type headers to uploads.
 
 This application retains the original shared editing model: it has **no built-in authentication**. Keep it local or behind an authenticated reverse proxy. The edit button changes the interface; it is not an access-control boundary.
 
-Before upgrading an existing deployment, stop its writers and back up `all_nav.db` together with `uploads/`. For a live SQLite database, use SQLite's backup API instead of copying only the main file while WAL writes are active. Test the upgrade on a backup first. The added ordering column is not removed automatically when rolling back application code.
+Before upgrading an existing deployment, stop its writers and back up `all_nav.db` together with `uploads/`. For a live SQLite database, use SQLite's backup API instead of copying only the main file while WAL writes are active. Test the upgrade on a backup first. The added ordering and icon columns are not removed automatically when rolling back application code.
 
-Theme behavior uses native [color-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color-scheme) and system preferences. System fonts avoid third-party font requests. Mobile editing switches to a single column below 540px with larger action buttons.
+Theme behavior uses native [color-scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/color-scheme) and system preferences. Fonts use Ubuntu, Yuanti SC, then Microsoft YaHei/微软雅黑. Ubuntu is served locally; Chinese fonts use the installed system fallbacks, with no third-party font requests. Sidebar labels and icons align left with extra left padding. Cards share the same grid width and a fixed 96px browsing height, including on narrow screens; edit controls add a consistent footer. Images remain on the left and vertically centered. Titles and descriptions each occupy one line and use an ellipsis when they overflow. Hovering or keyboard-focusing a card or sidebar category reveals only its truncated text. The tooltip stays within the viewport, can be hovered and scrolled, and closes on Escape, scrolling the page, or resizing. Clicking the edit controls still opens the editing form.
 
 References: [Flask uploads and request limits](https://flask.palletsprojects.com/en/stable/patterns/fileuploads/), [SVG image restrictions](https://developer.mozilla.org/en-US/docs/Web/SVG/Guides/SVG_as_an_image).

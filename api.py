@@ -2,7 +2,9 @@
 """毛豆百脑汇: a same-origin Flask application backed by SQLite."""
 
 import io
+import json
 import os
+import secrets
 import sqlite3
 import uuid
 import warnings
@@ -15,6 +17,8 @@ from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import BadRequest, Conflict, HTTPException, NotFound
 
 ROOT = Path(__file__).resolve().parent
+CATEGORY_ICONS = tuple(name for name in json.loads((ROOT / 'assets/lucide/icons.json').read_text())
+                       if name != 'layout-grid')
 FIELDS = {'category', 'name', 'logo', 'description', 'url', 'sort_order'}
 LIMITS = {'category': 120, 'name': 200, 'logo': 200_000, 'description': 10_000, 'url': 4096}
 IMAGE_FORMATS = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF',
@@ -49,6 +53,13 @@ def init_db():
             db.execute('ALTER TABLE ai_nav_flat ADD COLUMN category_sort_order INTEGER NOT NULL DEFAULT 0')
             db.executemany('UPDATE ai_nav_flat SET category_sort_order=? WHERE category=?',
                            [(order, name) for order, name in enumerate(names)])
+        if 'category_icon' not in columns:
+            db.execute("ALTER TABLE ai_nav_flat ADD COLUMN category_icon TEXT NOT NULL DEFAULT ''")
+        # Fill legacy categories once. All tools in a category share its saved icon.
+        missing_icons = db.execute("SELECT DISTINCT category FROM ai_nav_flat WHERE category_icon=''").fetchall()
+        for row in missing_icons:
+            db.execute('UPDATE ai_nav_flat SET category_icon=? WHERE category=?',
+                       (category_icon(db, row['category']), row['category']))
         db.execute('''CREATE INDEX IF NOT EXISTS idx_nav_order ON ai_nav_flat
                       (category_sort_order, category, sort_order, created_at, id)''')
         db.execute('CREATE INDEX IF NOT EXISTS idx_nav_category ON ai_nav_flat(category)')
@@ -111,11 +122,20 @@ def next_tool_order(db, category):
                          WHERE category=? AND name IS NOT NULL''', (category,)).fetchone()[0]
 
 
-def preserve_category(db, category, order):
+def category_icon(db, category):
+    row = db.execute("SELECT category_icon FROM ai_nav_flat WHERE category=? AND category_icon!='' LIMIT 1",
+                     (category,)).fetchone()
+    if row:
+        return row[0]
+    used = {row[0] for row in db.execute('SELECT DISTINCT category_icon FROM ai_nav_flat')}
+    return secrets.choice([icon for icon in CATEGORY_ICONS if icon not in used] or CATEGORY_ICONS)
+
+
+def preserve_category(db, category, order, icon):
     """Keep an empty category after its last tool is deleted or moved."""
     if not db.execute('SELECT 1 FROM ai_nav_flat WHERE category=?', (category,)).fetchone():
-        db.execute('INSERT INTO ai_nav_flat (category, name, category_sort_order) VALUES (?, NULL, ?)',
-                   (category, order))
+        db.execute('''INSERT INTO ai_nav_flat (category, name, category_sort_order, category_icon)
+                      VALUES (?, NULL, ?, ?)''', (category, order, icon))
 
 
 def create_app(config=None):
@@ -181,6 +201,10 @@ def create_app(config=None):
     def favicon():
         return send_from_directory(ROOT, 'favicon.ico')
 
+    @app.get('/assets/<path:name>')
+    def asset(name):
+        return send_from_directory(ROOT / 'assets', name)
+
     @app.get('/uploads/<name>')
     def uploaded_file(name):
         return send_from_directory(app.config['UPLOAD_FOLDER'], name, max_age=31536000)
@@ -208,11 +232,11 @@ def create_app(config=None):
                         'SELECT 1 FROM ai_nav_flat WHERE category=?', (category,)).fetchone():
                     raise Conflict('Category already exists')
                 cursor = db.execute('''INSERT INTO ai_nav_flat
-                    (category, name, logo, description, url, sort_order, category_sort_order)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)''', (
+                    (category, name, logo, description, url, sort_order, category_sort_order, category_icon)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)''', (
                         category, item.get('name'), item.get('logo', ''), item.get('description', ''),
                         item.get('url', ''), item.get('sort_order', next_tool_order(db, category)),
-                        category_order(db, category)))
+                        category_order(db, category), category_icon(db, category)))
                 results.append({'id': cursor.lastrowid})
         return jsonify(results), 201
 
@@ -241,13 +265,14 @@ def create_app(config=None):
                         if not exists:
                             raise BadRequest('Destination category does not exist')
                         fields['category_sort_order'] = category_order(db, destination)
+                        fields['category_icon'] = category_icon(db, destination)
                         fields['sort_order'] = next_tool_order(db, destination)
             assignments = ', '.join(f'{key}=?' for key in fields)
             cursor = db.execute(f'UPDATE ai_nav_flat SET {assignments} WHERE {where}',
                                 list(fields.values()) + values)
             if not rename:
                 for row in rows:
-                    preserve_category(db, row['category'], row['category_sort_order'])
+                    preserve_category(db, row['category'], row['category_sort_order'], row['category_icon'])
         return jsonify(updated=cursor.rowcount)
 
     @app.delete('/api/ai_nav_flat')
@@ -262,7 +287,7 @@ def create_app(config=None):
             cursor = db.execute(f'DELETE FROM ai_nav_flat WHERE {where}', values)
             if 'eq_id' in request.args:
                 for row in rows:
-                    preserve_category(db, row['category'], row['category_sort_order'])
+                    preserve_category(db, row['category'], row['category_sort_order'], row['category_icon'])
         return jsonify(deleted=cursor.rowcount)
 
     @app.post('/api/reorder')

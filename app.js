@@ -6,6 +6,7 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 })[char]);
 let categories = [];
+let categoryIcons = null;
 let activeCategory = null; // null means all; a category can itself be named “所有”.
 let isEditMode = false;
 let editingToolId = null;
@@ -51,12 +52,15 @@ function clearError() {
 
 async function fetchData() {
     const version = ++loadVersion;
-    const rows = await requestApi();
+    const [rows, iconManifest] = await Promise.all([
+        requestApi(), categoryIcons || requestApi('/assets/lucide/icons.json')
+    ]);
     if (version !== loadVersion) return;
     if (!Array.isArray(rows)) throw new Error('服务器返回了无效数据');
+    categoryIcons = iconManifest;
     const groups = new Map();
     for (const row of rows) {
-        if (!groups.has(row.category)) groups.set(row.category, { name: row.category, tools: [] });
+        if (!groups.has(row.category)) groups.set(row.category, { name: row.category, icon: row.category_icon, tools: [] });
         if (row.name) groups.get(row.category).tools.push(row);
     }
     categories = [...groups.values()];
@@ -133,15 +137,22 @@ const icons = {
 };
 
 function toolButton(action, label, icon, extra = '', disabled = false) {
-    return `<button type="button" class="tool-edit-btn ${action === 'move-tool' ? 'move' : action === 'edit-tool' ? 'edit' : 'delete'}" data-action="${action}" ${extra} title="${label}" aria-label="${label}" ${disabled ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${icons[icon]}</svg></button>`;
+    return `<button type="button" class="tool-edit-btn ${action === 'move-tool' ? 'move' : action === 'edit-tool' ? 'edit' : 'delete'}" data-action="${action}" ${extra} aria-label="${label}" ${disabled ? 'disabled' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${icons[icon]}</svg></button>`;
+}
+
+function categoryIconMarkup(name) {
+    // Only the bundled Lucide manifest supplies inline SVG, never stored user content.
+    if (!categoryIcons) return '';
+    const svg = Object.prototype.hasOwnProperty.call(categoryIcons, name) ? categoryIcons[name] : categoryIcons.folder;
+    return svg.replace('<svg', '<svg aria-hidden="true" focusable="false"');
 }
 
 function renderNav() {
     $('navList').innerHTML = `
-        <div class="nav-item ${activeCategory === null ? 'active' : ''}"><button class="nav-select" data-action="all" ${activeCategory === null ? 'aria-current="true"' : ''}>所有</button></div>
+        <div class="nav-item ${activeCategory === null ? 'active' : ''}"><button class="nav-select" data-action="all" ${activeCategory === null ? 'aria-current="true"' : ''}>${categoryIconMarkup('layout-grid')}<span class="nav-label">所有</span></button></div>
         ${categories.map(cat => `<div class="nav-item ${cat.name === activeCategory ? 'active' : ''}" data-category="${escapeHtml(cat.name)}">
-            <button class="nav-select" data-action="category" ${cat.name === activeCategory ? 'aria-current="true"' : ''}>${escapeHtml(cat.name)}</button>
-            ${isEditMode ? '<button class="delete-btn" data-action="delete-category" aria-label="删除分类" title="删除分类">✕</button>' : ''}
+            <button class="nav-select" data-action="category" ${cat.name === activeCategory ? 'aria-current="true"' : ''}>${categoryIconMarkup(cat.icon)}<span class="nav-label">${escapeHtml(cat.name)}</span></button>
+            ${isEditMode ? '<button class="delete-btn" data-action="delete-category" aria-label="删除分类">✕</button>' : ''}
         </div>`).join('')}
         ${!categories.length && !isEditMode ? '<div class="loading">暂无分类</div>' : ''}
         ${isEditMode ? `<form id="addCategoryForm" class="add-category show">
@@ -162,8 +173,8 @@ function renderTools() {
             <div class="category-header">
                 <div class="category-pill">
                     ${isEditMode && activeCategory === null ? `<div class="sort-actions">
-                        <button class="sort-btn" data-action="move-category" data-direction="-1" title="分类上移" aria-label="分类上移" ${categoryIndex === 0 ? 'disabled' : ''}>▲</button>
-                        <button class="sort-btn" data-action="move-category" data-direction="1" title="分类下移" aria-label="分类下移" ${categoryIndex === categories.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="sort-btn" data-action="move-category" data-direction="-1" aria-label="分类上移" ${categoryIndex === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="sort-btn" data-action="move-category" data-direction="1" aria-label="分类下移" ${categoryIndex === categories.length - 1 ? 'disabled' : ''}>▼</button>
                     </div>` : '<svg class="category-pill-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>'}
                     ${isEditMode ? `<input class="category-rename-input" aria-label="分类名称" maxlength="120" value="${escapeHtml(cat.name)}">` : `<h2>${escapeHtml(cat.name)}</h2>`}
                 </div><span class="category-count">${cat.tools.length} 个工具</span>
@@ -172,11 +183,10 @@ function renderTools() {
                 ${cat.tools.map((tool, index) => {
                     const url = safeLink(tool.url);
                     return `<article class="tool-card" data-id="${Number(tool.id)}">
-                        <a class="tool-card-body" aria-describedby="description-${Number(tool.id)}" ${url ? `href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : ''}>
+                        <a class="tool-card-body" aria-describedby="description-${Number(tool.id)}" ${url ? `href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer"` : 'tabindex="0"'}>
                             <div class="tool-logo">${logoMarkup(tool.logo)}</div>
-                            <div class="tool-content"><div class="tool-name" title="${escapeHtml(tool.name)}">${escapeHtml(tool.name)}</div>
+                            <div class="tool-content"><div class="tool-name">${escapeHtml(tool.name)}</div>
                                 <div class="tool-description" id="description-${Number(tool.id)}">${escapeHtml(tool.description)}</div></div>
-                            ${tool.description ? `<span class="tool-tooltip" aria-hidden="true">${escapeHtml(tool.description)}</span>` : ''}
                         </a>
                         ${isEditMode ? `<div class="tool-edit-footer">
                             <div class="edit-group">${toolButton('move-tool', '向前', 'previous', 'data-direction="-1"', index === 0)}${toolButton('move-tool', '向后', 'next', 'data-direction="1"', index === cat.tools.length - 1)}</div>
@@ -197,9 +207,91 @@ function renderTools() {
 }
 
 function render() {
+    hideOverflowTooltip();
     renderNav();
     renderTools();
 }
+
+// Measure the rendered text on interaction, so short text never gets a tooltip.
+const overflowTooltip = $('overflowTooltip');
+const tooltipTargets = '.tool-card-body, .nav-select';
+let tooltipTrigger = null;
+let tooltipBounds = null;
+let tooltipHideTimer = null;
+
+function hideOverflowTooltip() {
+    clearTimeout(tooltipHideTimer);
+    overflowTooltip.hidden = true;
+    if (tooltipTrigger) {
+        const descriptions = (tooltipTrigger.getAttribute('aria-describedby') || '')
+            .split(' ').filter(id => id && id !== overflowTooltip.id).join(' ');
+        if (descriptions) tooltipTrigger.setAttribute('aria-describedby', descriptions);
+        else tooltipTrigger.removeAttribute('aria-describedby');
+        tooltipTrigger = null;
+        tooltipBounds = null;
+    }
+}
+
+function showOverflowTooltip(trigger) {
+    hideOverflowTooltip();
+    const clipped = [...trigger.querySelectorAll('.tool-name, .tool-description, .nav-label')]
+        .filter(text => text.clientWidth > 0 && text.scrollWidth > text.clientWidth);
+    if (!clipped.length) return;
+    overflowTooltip.querySelector('.tooltip-content').replaceChildren(...clipped.map(text => {
+        const content = document.createElement('div');
+        content.textContent = text.textContent;
+        if (!text.classList.contains('tool-description')) content.className = 'tooltip-name';
+        return content;
+    }));
+    tooltipTrigger = trigger;
+    trigger.setAttribute('aria-describedby', [trigger.getAttribute('aria-describedby'), overflowTooltip.id].filter(Boolean).join(' '));
+    overflowTooltip.hidden = false;
+    const bounds = trigger.getBoundingClientRect();
+    tooltipBounds = bounds;
+    const { width, height } = overflowTooltip.getBoundingClientRect();
+    const below = bounds.bottom + 10;
+    const fitsBelow = below + height <= innerHeight - 12;
+    const top = fitsBelow ? below : bounds.top - height - 10;
+    const left = Math.max(12, Math.min(bounds.left, innerWidth - width - 12));
+    overflowTooltip.dataset.placement = fitsBelow ? 'bottom' : 'top';
+    overflowTooltip.style.setProperty('--tooltip-arrow-left', `${Math.max(16, Math.min(bounds.left + bounds.width / 2 - left, width - 16))}px`);
+    overflowTooltip.style.left = `${left}px`;
+    overflowTooltip.style.top = `${Math.max(12, Math.min(top, innerHeight - height - 12))}px`;
+}
+
+function scheduleTooltipHide() {
+    clearTimeout(tooltipHideTimer);
+    tooltipHideTimer = setTimeout(hideOverflowTooltip, 120);
+}
+
+document.addEventListener('pointerover', event => {
+    if (event.pointerType === 'touch') return;
+    const trigger = event.target.closest(tooltipTargets);
+    if (trigger && !trigger.contains(event.relatedTarget)) showOverflowTooltip(trigger);
+});
+document.addEventListener('pointerout', event => {
+    if (tooltipTrigger?.contains(event.target) && !tooltipTrigger.contains(event.relatedTarget)) scheduleTooltipHide();
+});
+overflowTooltip.addEventListener('pointerenter', () => clearTimeout(tooltipHideTimer));
+overflowTooltip.addEventListener('pointerleave', scheduleTooltipHide);
+document.addEventListener('focusin', event => {
+    const trigger = event.target.closest(tooltipTargets);
+    if (trigger) showOverflowTooltip(trigger);
+});
+document.addEventListener('focusout', event => {
+    if (tooltipTrigger?.contains(event.target)) scheduleTooltipHide();
+});
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') hideOverflowTooltip();
+});
+document.addEventListener('scroll', event => {
+    if (!tooltipTrigger || overflowTooltip.contains(event.target)) return;
+    const bounds = tooltipTrigger.getBoundingClientRect();
+    // A delayed scroll event from focusing an off-screen card must not hide its new tooltip.
+    if (bounds.top !== tooltipBounds.top || bounds.left !== tooltipBounds.left) hideOverflowTooltip();
+}, true);
+window.addEventListener('resize', hideOverflowTooltip);
+document.fonts.addEventListener('loadingdone', hideOverflowTooltip);
 
 function switchCategory(name) {
     activeCategory = name;
@@ -394,7 +486,7 @@ function updateThemeControl() {
     const dark = document.documentElement.dataset.theme === 'dark';
     document.body.classList.toggle('dark-mode', dark);
     $('themeToggle').setAttribute('aria-pressed', String(dark));
-    $('themeToggle').title = dark ? '切换到浅色主题' : '切换到深色主题';
+    $('themeToggle').setAttribute('aria-label', dark ? '切换到浅色主题' : '切换到深色主题');
     $('themeToggle').innerHTML = dark
         ? '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M1 12h2m18 0h2M4.22 4.22l1.42 1.42m12.72 12.72 1.42 1.42M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>'
         : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';

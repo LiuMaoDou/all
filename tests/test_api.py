@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory() as bootstrap:
         'ALL_NAV_DB': str(Path(bootstrap) / 'startup.db'),
         'ALL_NAV_UPLOAD_DIR': str(Path(bootstrap) / 'uploads'),
     }):
-        from api import create_app
+        from api import CATEGORY_ICONS, create_app
 
 
 class ApiTests(unittest.TestCase):
@@ -42,13 +42,57 @@ class ApiTests(unittest.TestCase):
         return response.get_json()
 
     def test_app_and_assets_are_served_but_database_is_not(self):
-        for path in ('/', '/index.html', '/app.js', '/theme.js', '/styles.css', '/favicon.ico'):
+        for path in ('/', '/index.html', '/app.js', '/theme.js', '/styles.css', '/favicon.ico',
+                     '/assets/lucide/icons.json', '/assets/fonts/ubuntu.css', '/assets/fonts/ubuntu-400-latin.woff2'):
             with self.client.get(path) as response:
                 self.assertEqual(response.status_code, 200, path)
                 self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
-        for path in ('/all_nav.db', '/api.py', '/.env', '/uploads/../api.py'):
+        for path in ('/all_nav.db', '/api.py', '/.env', '/uploads/../api.py', '/assets/../api.py'):
             self.assertEqual(self.client.get(path).status_code, 404)
         self.assertEqual(self.client.get('/api/ai_nav_flat').headers['Cache-Control'], 'no-store')
+
+    def test_category_icons_are_assigned_once_and_persist_through_edits(self):
+        with patch('api.secrets.choice', side_effect=lambda choices: choices[-1]) as choose:
+            first = self.add('A', 'One')
+            self.add('A', 'Two')
+            second = self.add('B', 'Three')
+            self.assertEqual(choose.call_count, 2)
+        original = {row['category']: row['category_icon'] for row in self.rows()}
+        self.assertEqual(len(set(original.values())), 2)
+        self.assertTrue(set(original.values()) <= set(CATEGORY_ICONS))
+        self.assertEqual(self.client.patch('/api/ai_nav_flat?eq_category=A', json={'category': 'Renamed'}).status_code, 200)
+        self.assertEqual(self.client.post('/api/reorder', json={'kind': 'categories', 'order': ['B', 'Renamed']}).status_code, 200)
+        self.assertEqual(self.client.patch(f'/api/ai_nav_flat?eq_id={first}', json={'category': 'B'}).status_code, 200)
+        # Deleting B's last tool retains its empty category and original icon.
+        self.assertEqual(self.client.patch(f'/api/ai_nav_flat?eq_id={second}', json={'category': 'Renamed'}).status_code, 200)
+        self.assertEqual(self.client.delete(f'/api/ai_nav_flat?eq_id={first}').status_code, 200)
+        expected = {'Renamed': original['A'], 'B': original['B']}
+        for row in self.rows():
+            self.assertEqual(row['category_icon'], expected[row['category']])
+        before = self.rows()
+        self.assertEqual(create_app(self.config).test_client().get('/api/ai_nav_flat').get_json(), before)
+
+    def test_moving_last_tool_preserves_source_icon(self):
+        tool = self.add('A', 'One')
+        self.add('B', None)
+        original = {row['category']: row['category_icon'] for row in self.rows()}
+        self.assertEqual(self.client.patch(f'/api/ai_nav_flat?eq_id={tool}', json={'category': 'B'}).status_code, 200)
+        rows = self.rows()
+        self.assertTrue(any(row['category'] == 'A' and row['name'] is None for row in rows))
+        for row in rows:
+            self.assertEqual(row['category_icon'], original[row['category']])
+
+    def test_category_icon_pool_can_be_reused_when_exhausted(self):
+        for index in range(len(CATEGORY_ICONS) + 1):
+            self.add(str(index), None)
+        self.assertEqual({row['category_icon'] for row in self.rows()}, set(CATEGORY_ICONS))
+
+    def test_category_icon_is_read_only(self):
+        tool = self.add()
+        before = self.rows()
+        self.assertEqual(self.client.patch(f'/api/ai_nav_flat?eq_id={tool}', json={'category_icon': '<svg/>'}).status_code, 400)
+        self.assertEqual(self.client.post('/api/ai_nav_flat', json={'category': 'B', 'category_icon': 'folder'}).status_code, 400)
+        self.assertEqual(self.rows(), before)
 
     def test_create_edit_move_and_delete_tool_preserves_empty_category(self):
         tool = self.add()
@@ -184,10 +228,19 @@ class MigrationTests(unittest.TestCase):
                 db.row_factory = sqlite3.Row
                 before = [dict(row) for row in db.execute('SELECT * FROM ai_nav_flat ORDER BY id')]
             config = {'TESTING': True, 'DATABASE': database, 'UPLOAD_FOLDER': str(Path(directory) / 'uploads')}
+            saved_icons = None
             for _ in range(2):
                 rows = create_app(config).test_client().get('/api/ai_nav_flat').get_json()
                 self.assertEqual(list(dict.fromkeys(row['category'] for row in rows)), ['A', 'B'])
-                self.assertEqual([{key: value for key, value in row.items() if key != 'category_sort_order'}
+                icons = {row['category']: row['category_icon'] for row in rows}
+                self.assertTrue(set(icons.values()) <= set(CATEGORY_ICONS))
+                self.assertEqual(len(set(icons.values())), 2)
+                for row in rows:
+                    self.assertEqual(row['category_icon'], icons[row['category']])
+                if saved_icons is not None:
+                    self.assertEqual(icons, saved_icons)
+                saved_icons = icons
+                self.assertEqual([{key: value for key, value in row.items() if key not in {'category_sort_order', 'category_icon'}}
                                   for row in sorted(rows, key=lambda row: row['id'])], before)
 
 
