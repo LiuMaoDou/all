@@ -141,9 +141,14 @@ function toolButton(action, label, icon, extra = '', disabled = false) {
 }
 
 function categoryIconMarkup(name) {
+    const value = String(name || '').trim();
+    // Uploaded images and http(s) URLs render as <img>; stored SVG markup is never inlined.
+    if (safeLink(value) || /^\/(?!\/)/.test(value)) {
+        return `<img src="${escapeHtml(value)}" alt="" width="18" height="18" loading="lazy" decoding="async">`;
+    }
     // Only the bundled Lucide manifest supplies inline SVG, never stored user content.
     if (!categoryIcons) return '';
-    const svg = Object.prototype.hasOwnProperty.call(categoryIcons, name) ? categoryIcons[name] : categoryIcons.folder;
+    const svg = Object.prototype.hasOwnProperty.call(categoryIcons, value) ? categoryIcons[value] : categoryIcons.folder;
     return svg.replace('<svg', '<svg aria-hidden="true" focusable="false"');
 }
 
@@ -151,7 +156,8 @@ function renderNav() {
     $('navList').innerHTML = `
         <div class="nav-item ${activeCategory === null ? 'active' : ''}"><button class="nav-select" data-action="all" ${activeCategory === null ? 'aria-current="true"' : ''}>${categoryIconMarkup('layout-grid')}<span class="nav-label">所有</span></button></div>
         ${categories.map(cat => `<div class="nav-item ${cat.name === activeCategory ? 'active' : ''}" data-category="${escapeHtml(cat.name)}">
-            <button class="nav-select" data-action="category" ${cat.name === activeCategory ? 'aria-current="true"' : ''}>${categoryIconMarkup(cat.icon)}<span class="nav-label">${escapeHtml(cat.name)}</span></button>
+            ${isEditMode ? `<button class="nav-icon-btn" data-action="category-icon" title="上传分类图标" aria-label="上传「${escapeHtml(cat.name)}」的分类图标">${categoryIconMarkup(cat.icon)}</button>` : ''}
+            <button class="nav-select" data-action="category" ${cat.name === activeCategory ? 'aria-current="true"' : ''}>${isEditMode ? '' : categoryIconMarkup(cat.icon)}<span class="nav-label">${escapeHtml(cat.name)}</span></button>
             ${isEditMode ? '<button class="delete-btn" data-action="delete-category" aria-label="删除分类">✕</button>' : ''}
         </div>`).join('')}
         ${!categories.length && !isEditMode ? '<div class="loading">暂无分类</div>' : ''}
@@ -360,6 +366,10 @@ document.addEventListener('click', async event => {
     switch (button.dataset.action) {
         case 'all': switchCategory(null); break;
         case 'category': switchCategory(category); break;
+        case 'category-icon':
+            categoryIconPicker.dataset.category = category;
+            categoryIconPicker.click();
+            break;
         case 'move-category': await moveCategory(category, Number(button.dataset.direction)); break;
         case 'move-tool': await moveTool(category, id, Number(button.dataset.direction)); break;
         case 'edit-tool': editTool(id, button); break;
@@ -422,11 +432,35 @@ document.addEventListener('change', async event => {
 
 // Failed images use a local fallback without inline event handlers.
 document.addEventListener('error', event => {
-    if (event.target.matches?.('.tool-logo img, #logoPreview img')) {
+    if (event.target.matches?.('.tool-logo img, #logoPreview img, .nav-icon-btn img, .nav-select img, .add-tool-card .logo-preview img')) {
         event.target.hidden = true;
         if (event.target.nextElementSibling) event.target.nextElementSibling.hidden = false;
     }
 }, true);
+
+// Shared hidden picker for category icons in edit mode.
+const categoryIconPicker = document.createElement('input');
+categoryIconPicker.type = 'file';
+categoryIconPicker.accept = '.png,.jpg,.jpeg,.gif,.webp,.svg,.ico';
+categoryIconPicker.hidden = true;
+document.body.append(categoryIconPicker);
+categoryIconPicker.addEventListener('change', async () => {
+    const file = categoryIconPicker.files[0];
+    const category = categoryIconPicker.dataset.category;
+    categoryIconPicker.value = '';
+    delete categoryIconPicker.dataset.category;
+    if (!file || !category || pending) return;
+    if (file.size > 5 * 1024 * 1024 - 1024) {
+        showError(new Error('请选择小于 5 MB 的图片。'));
+        return;
+    }
+    await mutate(async () => {
+        const body = new FormData();
+        body.append('file', file);
+        const result = await requestApi('/api/upload', { method: 'POST', body });
+        await requestApi(filteredPath({ category }), { method: 'PATCH', data: { category_icon: result.url } });
+    });
+});
 
 $('editLogo').addEventListener('input', () => { $('logoPreview').innerHTML = logoMarkup($('editLogo').value); });
 document.addEventListener('keydown', event => {

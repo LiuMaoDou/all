@@ -4,6 +4,7 @@
 import io
 import json
 import os
+import re
 import secrets
 import sqlite3
 import uuid
@@ -65,11 +66,39 @@ def init_db():
         db.execute('CREATE INDEX IF NOT EXISTS idx_nav_category ON ai_nav_flat(category)')
 
 
-def validate_fields(data, *, partial=False):
+LOCAL_IMAGE = re.compile(r'^/uploads/[a-z0-9._-]+\.(?:png|jpe?g|gif|webp|svg|ico)$', re.IGNORECASE)
+
+
+def category_icon_value(value):
+    """Category icons may be bundled Lucide names, uploaded images, or http(s) image URLs."""
+    if not isinstance(value, str):
+        raise BadRequest('category_icon must be a string')
+    value = value.strip()
+    if len(value) > 4096:
+        raise BadRequest('Invalid category_icon length (maximum 4096)')
+    if value in CATEGORY_ICONS:
+        return value
+    if LOCAL_IMAGE.match(value):
+        name = value.rsplit('/', 1)[-1]
+        if '..' in name or not (Path(current_app.config['UPLOAD_FOLDER']) / name).is_file():
+            raise BadRequest('category_icon image not found; upload it first')
+        return value
+    if value.startswith(('http://', 'https://')):
+        try:
+            url = urlsplit(value)
+            if url.scheme in ('http', 'https') and url.hostname:
+                return value
+        except ValueError:
+            pass
+    raise BadRequest('category_icon must be a Lucide icon name, an uploaded /uploads/ image, or an http(s) image URL')
+
+
+def validate_fields(data, *, partial=False, allow_category_icon=False):
     if not isinstance(data, dict) or not data:
         raise BadRequest('Expected a non-empty JSON object')
-    if set(data) - FIELDS:
-        raise BadRequest('Unknown or read-only fields: ' + ', '.join(sorted(set(data) - FIELDS)))
+    allowed = FIELDS | ({'category_icon'} if allow_category_icon else set())
+    if set(data) - allowed:
+        raise BadRequest('Unknown or read-only fields: ' + ', '.join(sorted(set(data) - allowed)))
     if not partial and 'category' not in data:
         raise BadRequest('Category is required')
     cleaned = dict(data)
@@ -97,6 +126,8 @@ def validate_fields(data, *, partial=False):
             valid = False
         if not valid or any(ord(char) < 33 for char in cleaned['url']):
             raise BadRequest('URL must be an absolute http:// or https:// address')
+    if 'category_icon' in cleaned:
+        cleaned['category_icon'] = category_icon_value(cleaned['category_icon'])
     return cleaned
 
 
@@ -242,11 +273,14 @@ def create_app(config=None):
 
     @app.patch('/api/ai_nav_flat')
     def update():
-        fields = validate_fields(request.get_json(), partial=True)
+        fields = validate_fields(request.get_json(), partial=True, allow_category_icon=True)
         where, values = filters()
-        rename = 'eq_category' in request.args and 'eq_id' not in request.args
-        if rename and set(fields) != {'category'}:
-            raise BadRequest('Category updates may only rename the category; use /api/reorder for ordering')
+        category_edit = 'eq_category' in request.args and 'eq_id' not in request.args
+        if 'category_icon' in fields and not category_edit:
+            raise BadRequest('category_icon can only be updated through an eq_category filter')
+        if category_edit and not set(fields) <= {'category', 'category_icon'}:
+            raise BadRequest('Category updates may only rename the category or change its icon; use /api/reorder for ordering')
+        rename = category_edit and 'category' in fields
         db = get_db()
         with db:
             db.execute('BEGIN IMMEDIATE')

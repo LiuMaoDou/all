@@ -94,6 +94,35 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.post('/api/ai_nav_flat', json={'category': 'B', 'category_icon': 'folder'}).status_code, 400)
         self.assertEqual(self.rows(), before)
 
+    def test_category_icon_upload_updates_whole_category(self):
+        image = io.BytesIO()
+        Image.new('RGB', (4, 4), 'teal').save(image, format='PNG')
+        url = self.client.post('/api/upload', data={'file': (io.BytesIO(image.getvalue()), 'icon.png')}).get_json()['url']
+        self.add(category='A', name='One')
+        self.add(category='A', name='Two')
+        response = self.client.patch('/api/ai_nav_flat?eq_category=A', json={'category_icon': url})
+        self.assertEqual(response.status_code, 200, response.get_json())
+        rows = self.rows()
+        self.assertTrue(all(row['category_icon'] == url for row in rows))
+        self.client.patch('/api/ai_nav_flat?eq_category=A', json={'category_icon': 'folder'})
+        self.assertTrue(all(row['category_icon'] == 'folder' for row in self.rows()))
+
+    def test_category_icon_rejects_unseen_lucide_names_and_missing_uploads(self):
+        self.add()
+        for value in ['folder.png', '/uploads/missing.png', 'javascript:alert(1)', '<svg onload=1>', '/etc/passwd']:
+            response = self.client.patch(f'/api/ai_nav_flat?eq_category=A', json={'category_icon': value})
+            self.assertEqual(response.status_code, 400, value)
+            self.assertNotEqual(self.rows()[0]['category_icon'], value)
+
+    def test_category_icon_cannot_be_set_on_tool_level_patch(self):
+        tool = self.add()
+        image = io.BytesIO()
+        Image.new('RGB', (4, 4), 'olive').save(image, format='PNG')
+        url = self.client.post('/api/upload', data={'file': (io.BytesIO(image.getvalue()), 'icon.png')}).get_json()['url']
+        before = self.rows()
+        self.assertEqual(self.client.patch(f'/api/ai_nav_flat?eq_id={tool}', json={'category_icon': url}).status_code, 400)
+        self.assertEqual(self.rows(), before)
+
     def test_create_edit_move_and_delete_tool_preserves_empty_category(self):
         tool = self.add()
         self.add('B', None)
