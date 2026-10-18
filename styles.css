@@ -205,6 +205,12 @@ textarea { resize: vertical; }
 .add-tool-card.show { display: flex; }
 .add-tool-card input, .add-tool-card textarea { font-size: 13px; }
 .add-tool-card textarea { min-height: 74px; }
+.add-tool-card .logo-input-row { gap: 6px; }
+.add-tool-card .upload-btn { min-height: 40px; padding: 8px 10px; font-size: 13px; }
+.add-tool-card .logo-preview:empty, .add-tool-card .logo-preview[hidden] { display: none; }
+.add-tool-card .logo-preview { display: flex; align-items: center; }
+.add-tool-card .logo-preview img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; }
+.add-tool-card .logo-preview .tool-logo-emoji { font-size: 27px; line-height: 1; }
 .add-tool-actions { display: flex; gap: 8px; margin-top: auto; }
 .add-tool-actions button { flex: 1; min-height: 40px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 550; }
 .save-tool-btn, .btn-primary { background: var(--color-accent); color: var(--on-accent); }
@@ -224,6 +230,7 @@ body:has(.modal.show) { overflow: hidden; }
 .upload-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 44px; padding: 10px 14px; border-radius: 8px; cursor: pointer; background: var(--color-accent); color: var(--on-accent); font-size: 14px; font-weight: 550; white-space: nowrap; }
 #logoPreview { margin-top: 10px; }
 #logoPreview img { object-fit: contain; border-radius: 8px; }
+#logoPreview .tool-logo-emoji { font-size: 27px; line-height: 1; }
 .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
 .modal-actions button { flex: 1; min-height: 44px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 550; }
 .loading { width: 100%; padding: 32px 16px; text-align: center; color: var(--text-secondary); font-size: 14px; }

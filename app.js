@@ -195,7 +195,14 @@ function renderTools() {
                     </article>`;
                 }).join('')}
                 ${isEditMode ? `<form class="tool-card add-tool-card show">
-                    <input name="logo" placeholder="Logo URL / Emoji / SVG" aria-label="工具 Logo">
+                    <div class="logo-input-row">
+                        <input name="logo" placeholder="Logo（Emoji / URL）" aria-label="工具 Logo">
+                        <label class="upload-btn" role="button" tabindex="0" aria-label="上传 Logo 图片">
+                            <span class="upload-label">📷 上传</span>
+                            <input type="file" class="logo-file" accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.ico" style="display:none;">
+                        </label>
+                    </div>
+                    <div class="logo-preview"></div>
                     <input name="name" placeholder="名称" aria-label="工具名称" maxlength="200" required>
                     <textarea name="description" placeholder="描述" aria-label="工具描述" maxlength="10000"></textarea>
                     <input name="url" type="url" placeholder="网址" aria-label="工具网址" maxlength="4096">
@@ -422,14 +429,21 @@ document.addEventListener('error', event => {
 }, true);
 
 $('editLogo').addEventListener('input', () => { $('logoPreview').innerHTML = logoMarkup($('editLogo').value); });
-document.querySelector('.upload-btn').addEventListener('keydown', event => {
-    if (['Enter', ' '].includes(event.key)) {
-        event.preventDefault();
-        if (!pending) $('editLogoFile').click();
-    }
+document.addEventListener('keydown', event => {
+    if (!['Enter', ' '].includes(event.key)) return;
+    const button = event.target.closest('.upload-btn');
+    if (!button) return;
+    event.preventDefault();
+    if (!pending) button.querySelector('input[type=file]').click();
 });
-$('editLogoFile').addEventListener('change', async event => {
-    const input = event.target;
+// Works for both the edit modal and the inline "add tool" card.
+document.addEventListener('change', async event => {
+    const input = event.target.closest?.('.logo-file, #editLogoFile, .add-tool-card input[type=file]');
+    if (!input) return;
+    const row = input.closest('.logo-input-row');
+    const textInput = row?.querySelector('input[name=logo], #editLogo');
+    const preview = row?.parentElement.querySelector('.logo-preview, #logoPreview');
+    const label = row?.querySelector('.upload-label, #uploadLabel');
     const file = input.files[0];
     if (!file || pending) return;
     if (file.size > 5 * 1024 * 1024 - 1024) {
@@ -439,20 +453,21 @@ $('editLogoFile').addEventListener('change', async event => {
     }
     pending = true;
     clearError();
-    const controls = [...$('editForm').querySelectorAll('button, input, textarea, select')];
+    const scope = row?.closest('form, .modal-content') || $('editForm');
+    const controls = [...scope.querySelectorAll('button, input, textarea, select')];
     controls.forEach(control => { control.disabled = true; });
-    $('uploadLabel').textContent = '⏳ 上传中…';
+    if (label) label.textContent = '⏳ 上传中…';
     try {
         const body = new FormData();
         body.append('file', file);
         const result = await requestApi('/api/upload', { method: 'POST', body });
-        $('editLogo').value = result.url; // Keep local uploads portable across hostnames.
-        $('logoPreview').innerHTML = logoMarkup(result.url);
+        if (textInput) textInput.value = result.url; // Local URLs stay portable across hostnames.
+        if (preview) preview.innerHTML = logoMarkup(result.url);
     } catch (error) {
         showError(error);
     } finally {
         controls.forEach(control => { control.disabled = false; });
-        $('uploadLabel').textContent = '📷 上传';
+        if (label) label.textContent = '📷 上传';
         input.value = '';
         pending = false;
     }
