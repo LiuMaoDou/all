@@ -159,13 +159,13 @@ textarea { resize: vertical; }
 .sort-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .sort-btn { display: grid; place-items: center; border: 0; border-radius: 6px; width: 30px; height: 30px; background: transparent; color: var(--accent-text); font-size: 11px; }
 .category-rename-input { width: 155px; padding: 4px 2px; background: transparent; color: var(--accent-text); font-size: 15px; font-weight: 600; border: 0; border-bottom: 1px dashed var(--input-border); border-radius: 0; }
-.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); align-items: start; gap: 16px; }
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, min(220px, 100%)); align-items: start; gap: 16px; }
 .tool-card {
     min-width: 0; position: relative; display: flex; flex-direction: column;
     background: var(--tool-bg); border: 1px solid var(--tool-border); border-radius: 14px; box-shadow: var(--card-shadow);
 }
 .tool-card-body {
-    display: flex; align-items: center; gap: 14px; height: 94px; flex: 0 0 94px; min-width: 0; padding: 18px;
+    display: flex; align-items: center; gap: 12px; height: 78px; flex: 0 0 78px; min-width: 0; padding: 10px 14px;
     color: inherit; text-decoration: none; border-radius: inherit;
 }
 .tool-logo { width: 42px; height: 42px; flex: 0 0 42px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 9px; }
@@ -263,8 +263,7 @@ body:has(.modal.show) { overflow: hidden; }
     .category-pill { padding: 6px 10px; }
     .category-pill h2 { font-size: 15px; }
     .category-section { margin-bottom: 28px; }
-    .tools-grid { gap: 12px; }
-    .tool-card-body { gap: 12px; padding: 16px; }
+    .tools-grid { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; }
     .tool-name { font-size: 14px; }
     .tool-description { font-size: 12px; }
     .category-rename-input { width: 125px; }
