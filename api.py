@@ -16,10 +16,13 @@ from xml.etree import ElementTree
 from flask import Flask, current_app, g, jsonify, request, send_from_directory
 from PIL import Image, UnidentifiedImageError
 from werkzeug.exceptions import BadRequest, Conflict, HTTPException, NotFound
+from favorites_api import init_favorites, register_favorites
 
 ROOT = Path(__file__).resolve().parent
+UI_ICONS = {'layout-grid', 'plus', 'search', 'folder-plus', 'folder-open', 'inbox', 'pencil',
+            'trash-2', 'x', 'arrow-up-down', 'menu', 'ellipsis', 'chevron-down'}
 CATEGORY_ICONS = tuple(name for name in json.loads((ROOT / 'assets/lucide/icons.json').read_text())
-                       if name != 'layout-grid')
+                       if name not in UI_ICONS)
 FIELDS = {'category', 'name', 'logo', 'description', 'url', 'sort_order'}
 LIMITS = {'category': 120, 'name': 200, 'logo': 200_000, 'description': 10_000, 'url': 4096}
 IMAGE_FORMATS = {'.png': 'PNG', '.jpg': 'JPEG', '.jpeg': 'JPEG', '.gif': 'GIF',
@@ -64,6 +67,7 @@ def init_db():
         db.execute('''CREATE INDEX IF NOT EXISTS idx_nav_order ON ai_nav_flat
                       (category_sort_order, category, sort_order, created_at, id)''')
         db.execute('CREATE INDEX IF NOT EXISTS idx_nav_category ON ai_nav_flat(category)')
+        init_favorites(db)
 
 
 LOCAL_IMAGE = re.compile(r'^/uploads/[a-z0-9._-]+\.(?:png|jpe?g|gif|webp|svg|ico)$', re.IGNORECASE)
@@ -178,6 +182,7 @@ def create_app(config=None):
     )
     if config:
         app.config.update(config)
+    register_favorites(app, get_db, CATEGORY_ICONS)
     Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
 
     @app.teardown_appcontext
@@ -219,6 +224,14 @@ def create_app(config=None):
     @app.get('/app.js')
     def javascript():
         return send_from_directory(ROOT, 'app.js')
+
+    @app.get('/favorites.js')
+    def favorites_script():
+        return send_from_directory(ROOT, 'favorites.js')
+
+    @app.get('/favorites.css')
+    def favorites_stylesheet():
+        return send_from_directory(ROOT, 'favorites.css')
 
     @app.get('/theme.js')
     def theme_script():

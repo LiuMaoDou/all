@@ -21,10 +21,30 @@ Open [http://127.0.0.1:5231](http://127.0.0.1:5231). The same Flask application 
 - `styles.css`: responsive layouts and shared Morandi color tokens for light/dark themes.
 - `theme.js`: applies the saved theme before the stylesheet loads; otherwise follows the system preference, including live changes. Manual choices persist and sync between tabs.
 - `app.js`: API requests, grouped rendering, editing, ordering, and uploads. Stored text is escaped, and stored SVG markup is rendered in an image context.
+- `favorites.js` / `favorites.css`: the built-in “我的收藏” folder manager, compact link list, sorting, search, and themed fixed tiger artwork.
+- `favorites_api.py`: independent SQLite-backed favorites and folder APIs.
 - `assets/`: locally served Ubuntu fonts and a small Lucide icon collection, with licenses and source information.
 - `api.py`: Flask application, validation, SQLite initialization/migration, and file serving. `create_app(config)` supports isolated test instances; `api:app` is the WSGI entry point.
 - `tests/test_api.py`: migration, CRUD, ordering, validation, rollback, and upload regression tests.
 - `all_nav.db` and `uploads/`: runtime data, excluded from Git. Cloning this repository does not copy existing bookmarks or logos.
+
+## 我的收藏
+
+Open the built-in sidebar entry or [http://127.0.0.1:5231/#favorites](http://127.0.0.1:5231/#favorites). Create folders, save a name and HTTP(S) URL, and use each row's menu to edit, move, or delete a link. “全部收藏” and “未分类” are virtual system folders. Deleting a custom folder moves its links into “未分类”.
+
+Favorites use the independent `favorites` and `favorite_folders` tables in the same SQLite database. Startup creates them without changing tool-directory records. Each new link receives a random bundled Lucide icon and a UTC creation timestamp; edits and moves preserve both. Dates display in the browser's local timezone. Name ordering uses Chinese pinyin, case-insensitive Latin ordering, and natural numeric comparison; ascending/descending choices and the selected folder persist locally. Search matches names and URLs within the selected folder.
+
+The background is a transparent tiger line-art asset recolored through a CSS alpha mask for light and dark themes. It sits outside the link-list scroll container, so the artwork stays fixed while the rows scroll. On small screens the folder pane opens as a drawer. As with the existing tool directory, favorites follow this application's shared editing model.
+
+| Method and path | Favorites behavior |
+| --- | --- |
+| `GET /api/favorites` | Return `{folders, bookmarks}`. |
+| `POST /api/favorite-folders` | Create a folder with `{name}`. |
+| `PATCH /api/favorite-folders/<id>` | Rename a folder with `{name}`. |
+| `DELETE /api/favorite-folders/<id>` | Delete a folder while retaining its links. |
+| `POST /api/favorites` | Create a link with `{name, url, folder_id}`; omit/set `folder_id` to `null` for “未分类”. |
+| `PATCH /api/favorites/<id>` | Edit `name`, `url`, and/or `folder_id`; icons and creation timestamps are read-only. |
+| `DELETE /api/favorites/<id>` | Delete a single link. |
 
 ## Data and ordering
 
@@ -65,14 +85,14 @@ Errors return a JSON `error` string. Mutation filters support `eq_id` and `eq_ca
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
-node --check app.js && node --check theme.js  # optional, if Node.js is installed
+node --check app.js && node --check favorites.js && node --check theme.js  # optional, if Node.js is installed
 ```
 
 The tests use temporary databases and upload directories. They cover migration without losing legacy fields, persistent category icons, reorder persistence, category moves, atomic rollback, malformed requests, unsafe link schemes, static file boundaries, and upload validation.
 
 ## Deployment and backup
 
-The built-in server is for local development. For a hosted instance, serve `api:app` with a production WSGI server and preserve the original Host header in the reverse proxy. Proxy all paths to the application to retain its upload security headers. If static files are served separately, include `app.js`, `theme.js`, `styles.css`, and the `assets/` directory, and apply the same sandbox/content-type headers to uploads.
+The built-in server is for local development. For a hosted instance, serve `api:app` with a production WSGI server and preserve the original Host header in the reverse proxy. Proxy all paths to the application to retain its upload security headers. If static files are served separately, include `app.js`, `favorites.js`, `theme.js`, `styles.css`, `favorites.css`, and the `assets/` directory, and apply the same sandbox/content-type headers to uploads.
 
 This application retains the original shared editing model: it has **no built-in authentication**. Keep it local or behind an authenticated reverse proxy. The edit button changes the interface; it is not an access-control boundary.
 

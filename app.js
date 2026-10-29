@@ -8,12 +8,17 @@ const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
 let categories = [];
 let categoryIcons = null;
 let activeCategory = null; // null means all; a category can itself be named “所有”.
+let activeView = location.hash === '#favorites' ? 'favorites' : 'tools';
 let isEditMode = false;
 let editingToolId = null;
 let pending = false;
 let hasLoaded = false;
 let loadVersion = 0;
 let modalTrigger = null;
+const favorites = window.createFavorites({
+    api: requestApi, icon: categoryIconMarkup, escape: escapeHtml,
+    target: $('mainContent'), isActive: () => activeView === 'favorites',
+});
 
 async function requestApi(path = API, { method = 'GET', data, body } = {}) {
     const controller = new AbortController();
@@ -153,15 +158,17 @@ function categoryIconMarkup(name) {
 }
 
 function renderNav() {
+    const navEditing = isEditMode && activeView === 'tools';
     $('navList').innerHTML = `
-        <div class="nav-item ${activeCategory === null ? 'active' : ''}"><button class="nav-select" data-action="all" ${activeCategory === null ? 'aria-current="true"' : ''}>${categoryIconMarkup('layout-grid')}<span class="nav-label">所有</span></button></div>
-        ${categories.map(cat => `<div class="nav-item ${cat.name === activeCategory ? 'active' : ''}" data-category="${escapeHtml(cat.name)}">
-            ${isEditMode ? `<button class="nav-icon-btn" data-action="category-icon" title="上传分类图标" aria-label="上传「${escapeHtml(cat.name)}」的分类图标">${categoryIconMarkup(cat.icon)}</button>` : ''}
-            <button class="nav-select" data-action="category" ${cat.name === activeCategory ? 'aria-current="true"' : ''}>${isEditMode ? '' : categoryIconMarkup(cat.icon)}<span class="nav-label">${escapeHtml(cat.name)}</span></button>
-            ${isEditMode ? '<button class="delete-btn" data-action="delete-category" aria-label="删除分类">✕</button>' : ''}
+        <div class="nav-item system-favorites ${activeView === 'favorites' ? 'active' : ''}"><button class="nav-select" data-action="favorites" ${activeView === 'favorites' ? 'aria-current="page"' : ''}>${categoryIconMarkup('bookmark')}<span class="nav-label">我的收藏</span></button></div>
+        <div class="nav-item ${activeView === 'tools' && activeCategory === null ? 'active' : ''}"><button class="nav-select" data-action="all" ${activeView === 'tools' && activeCategory === null ? 'aria-current="true"' : ''}>${categoryIconMarkup('layout-grid')}<span class="nav-label">所有</span></button></div>
+        ${categories.map(cat => `<div class="nav-item ${activeView === 'tools' && cat.name === activeCategory ? 'active' : ''}" data-category="${escapeHtml(cat.name)}">
+            ${navEditing ? `<button class="nav-icon-btn" data-action="category-icon" title="上传分类图标" aria-label="上传「${escapeHtml(cat.name)}」的分类图标">${categoryIconMarkup(cat.icon)}</button>` : ''}
+            <button class="nav-select" data-action="category" ${activeView === 'tools' && cat.name === activeCategory ? 'aria-current="true"' : ''}>${navEditing ? '' : categoryIconMarkup(cat.icon)}<span class="nav-label">${escapeHtml(cat.name)}</span></button>
+            ${navEditing ? '<button class="delete-btn" data-action="delete-category" aria-label="删除分类">✕</button>' : ''}
         </div>`).join('')}
-        ${!categories.length && !isEditMode ? '<div class="loading">暂无分类</div>' : ''}
-        ${isEditMode ? `<form id="addCategoryForm" class="add-category show">
+        ${!categories.length && !navEditing && activeView === 'tools' ? '<div class="loading">暂无分类</div>' : ''}
+        ${navEditing ? `<form id="addCategoryForm" class="add-category show">
             <input id="newCategoryName" aria-label="新分类名称" placeholder="新分类名称" maxlength="120" required>
             <button type="submit" aria-label="添加分类">+</button>
         </form>` : ''}`;
@@ -221,13 +228,19 @@ function renderTools() {
 
 function render() {
     hideOverflowTooltip();
+    document.body.classList.toggle('favorites-mode', activeView === 'favorites');
+    document.body.classList.toggle('edit-mode', activeView === 'tools' && isEditMode);
+    $('editToggle').classList.toggle('editing', activeView === 'tools' && isEditMode);
+    $('editToggle').setAttribute('aria-pressed', String(activeView === 'tools' && isEditMode));
+    $('editToggle').setAttribute('aria-label', activeView === 'favorites' ? '收藏链接' : '编辑模式');
     renderNav();
-    renderTools();
+    if (activeView === 'favorites') favorites.mount();
+    else { favorites.unmount(); renderTools(); }
 }
 
 // Measure the rendered text on interaction, so short text never gets a tooltip.
 const overflowTooltip = $('overflowTooltip');
-const tooltipTargets = '.tool-card-body, .nav-select';
+const tooltipTargets = '.tool-card-body, .nav-select, .favorite-link, .favorite-folder-select';
 let tooltipTrigger = null;
 let tooltipBounds = null;
 let tooltipHideTimer = null;
@@ -247,7 +260,7 @@ function hideOverflowTooltip() {
 
 function showOverflowTooltip(trigger) {
     hideOverflowTooltip();
-    const clipped = [...trigger.querySelectorAll('.tool-name, .tool-description, .nav-label')]
+    const clipped = [...trigger.querySelectorAll('.tool-name, .tool-description, .nav-label, .favorite-name, .favorite-folder-name')]
         .filter(text => text.clientWidth > 0 && text.scrollWidth > text.clientWidth);
     if (!clipped.length) return;
     overflowTooltip.querySelector('.tooltip-content').replaceChildren(...clipped.map(text => {
@@ -307,6 +320,8 @@ window.addEventListener('resize', hideOverflowTooltip);
 document.fonts.addEventListener('loadingdone', hideOverflowTooltip);
 
 function switchCategory(name) {
+    activeView = 'tools';
+    location.hash = 'tools';
     activeCategory = name;
     render();
     $('mainContent').scrollTop = 0;
@@ -364,6 +379,11 @@ document.addEventListener('click', async event => {
     const category = button.closest('[data-category]')?.dataset.category;
     const id = Number(button.closest('[data-id]')?.dataset.id);
     switch (button.dataset.action) {
+        case 'favorites':
+            activeView = 'favorites';
+            location.hash = 'favorites';
+            render();
+            break;
         case 'all': switchCategory(null); break;
         case 'category': switchCategory(category); break;
         case 'category-icon':
@@ -509,6 +529,7 @@ document.addEventListener('change', async event => {
 
 $('editToggle').addEventListener('click', () => {
     if (pending) return;
+    if (activeView === 'favorites') { favorites.openBookmark(); return; }
     isEditMode = !isEditMode;
     document.body.classList.toggle('edit-mode', isEditMode);
     $('editToggle').classList.toggle('editing', isEditMode);
@@ -543,5 +564,9 @@ function updateThemeControl() {
 document.addEventListener('themechange', updateThemeControl);
 updateThemeControl();
 $('themeToggle').addEventListener('click', () => window.navTheme.toggle());
-$('retryLoad').addEventListener('click', () => { if (!pending) reloadData(); });
+$('retryLoad').addEventListener('click', () => { if (!pending) { reloadData(); if (activeView === 'favorites') favorites.reload(); } });
+window.addEventListener('hashchange', () => {
+    const view = location.hash === '#favorites' ? 'favorites' : 'tools';
+    if (view !== activeView) { activeView = view; render(); }
+});
 reloadData();
