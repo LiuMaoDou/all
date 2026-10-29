@@ -3,9 +3,10 @@
 window.createFavorites = ({ api, icon, escape, target, isActive }) => {
     const collator = new Intl.Collator('zh-CN', { numeric: true, sensitivity: 'base' });
     const dateFormatter = new Intl.DateTimeFormat('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const state = { folders: [], bookmarks: [], folder: 'all', sort: 'asc', query: '', loaded: false, busy: false, error: '' };
+    const state = { folders: [], bookmarks: [], folder: 'all', sortBy: 'name', sort: 'asc', query: '', loaded: false, busy: false, error: '' };
     try {
         state.sort = localStorage.getItem('favorites-sort') === 'desc' ? 'desc' : 'asc';
+        state.sortBy = localStorage.getItem('favorites-sort-by') === 'date' ? 'date' : 'name';
         const saved = localStorage.getItem('favorites-folder');
         if (saved === 'unfiled' || /^\d+$/.test(saved || '')) state.folder = saved;
     } catch { /* Preferences are optional. */ }
@@ -15,11 +16,7 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
     page.setAttribute('aria-label', '我的收藏');
     page.innerHTML = `
         <header class="favorites-page-header">
-            <div><h1>我的收藏</h1><p>把常用链接，收进自己的文件夹</p></div>
-            <div class="favorites-header-actions">
-                <button class="favorite-secondary" data-favorite-action="new-folder"></button>
-                <button class="favorite-primary" data-favorite-action="new-bookmark"></button>
-            </div>
+            <h1>我的收藏</h1>
         </header>
         <div class="favorites-status" role="alert" hidden><span></span><button data-favorite-action="retry">重新加载</button></div>
         <div class="favorites-body">
@@ -32,13 +29,12 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
                     <div class="favorites-toolbar">
                         <div class="favorites-folder-heading"></div>
                         <div class="favorites-filters">
-                            <label class="favorite-sort"><span class="favorite-sort-icon"></span><select aria-label="收藏排序"><option value="asc">名称升序</option><option value="desc">名称降序</option></select></label>
                             <label class="favorite-search"><span></span><input type="search" aria-label="搜索收藏名称或链接" placeholder="搜索收藏名称或链接"></label>
                         </div>
                     </div>
                 </div>
                 <div class="favorite-list-stage">
-                    <div class="favorite-list-scroll"><div class="favorite-list-legend" aria-hidden="true"><span>收藏名称</span><span>添加日期</span><span></span></div><div class="favorite-list"></div></div>
+                    <div class="favorite-list-scroll"><div class="favorite-list-legend" role="group" aria-label="收藏排序"><button class="favorite-column-sort" data-favorite-action="sort-name"></button><button class="favorite-column-sort" data-favorite-action="sort-date"></button><span></span></div><div class="favorite-list"></div></div>
                 </div>
             </section>
         </div>`;
@@ -88,10 +84,18 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
     }
 
     function drawRows() {
+        for (const [key, label] of [['name', '收藏名称'], ['date', '添加日期']]) {
+            const active = state.sortBy === key;
+            const button = field(`[data-favorite-action="sort-${key}"]`);
+            button.innerHTML = `<span>${label}</span>${icon(active ? 'chevron-down' : 'arrow-up-down')}`;
+            button.classList.toggle('ascending', active && state.sort === 'asc');
+            button.setAttribute('aria-pressed', String(active));
+            button.setAttribute('aria-label', `${label}，${active ? (state.sort === 'asc' ? '当前升序，点击降序' : '当前降序，点击升序') : '点击排序'}`);
+        }
         const query = state.query.trim().toLocaleLowerCase();
         const inFolder = state.bookmarks.filter(b => state.folder === 'all' || (state.folder === 'unfiled' ? b.folder_id === null : String(b.folder_id) === state.folder));
         const visible = inFolder.filter(b => !query || `${b.name}\n${b.url}`.toLocaleLowerCase().includes(query))
-            .sort((a, b) => (state.sort === 'desc' ? -1 : 1) * (collator.compare(a.name, b.name) || a.id - b.id));
+            .sort((a, b) => (state.sort === 'desc' ? -1 : 1) * ((state.sortBy === 'date' ? Date.parse(a.created_at) - Date.parse(b.created_at) : collator.compare(a.name, b.name)) || a.id - b.id));
         const name = folderName();
         field('.favorites-breadcrumb').innerHTML = `<span>我的收藏</span><span aria-hidden="true">/</span><span>${escape(name)}</span>`;
         field('.favorites-folder-heading').innerHTML = `${icon('folder-open')}<h2>${escape(name)}</h2><span class="favorite-visible-count" aria-live="polite">${visible.length} 个链接</span>`;
@@ -99,8 +103,9 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
             field('.favorite-list').innerHTML = `<div class="favorite-empty" role="status">${state.error ? '暂时无法加载收藏，请重新加载。' : '正在加载收藏…'}</div>`;
             return;
         }
+        const addButton = `<button class="favorite-icon-button favorite-add-link" data-favorite-action="new-bookmark" aria-label="收藏链接">${icon('plus')}</button>`;
         if (!visible.length) {
-            field('.favorite-list').innerHTML = `<div class="favorite-empty">${icon(query ? 'search' : 'bookmark')}<h3>${query ? '没有找到相关收藏' : '这里还没有收藏'}</h3><p>${query ? '试试其他名称或网址。' : '收藏网站、文章、文档和视频，让好内容随时可达。'}</p>${query ? '' : '<button class="favorite-primary" data-favorite-action="new-bookmark">收藏第一个链接</button>'}</div>`;
+            field('.favorite-list').innerHTML = `<div class="favorite-empty">${icon(query ? 'search' : 'bookmark')}<h3>${query ? '没有找到相关收藏' : '这里还没有收藏'}</h3><p>${query ? '试试其他名称或网址。' : '收藏网站、文章、文档和视频，让好内容随时可达。'}</p>${addButton}</div>`;
             return;
         }
         field('.favorite-list').innerHTML = visible.map(bookmark => {
@@ -111,7 +116,7 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
                 <time class="favorite-date" datetime="${escape(bookmark.created_at)}">${label}</time>
                 <button class="favorite-more" data-favorite-action="bookmark-menu" data-id="${bookmark.id}" aria-label="管理收藏 ${escape(bookmark.name)}" aria-haspopup="menu" aria-expanded="false">${icon('ellipsis')}</button>
             </div>`;
-        }).join('');
+        }).join('') + `<div class="favorite-add-row">${addButton}</div>`;
     }
 
     function draw() {
@@ -120,12 +125,8 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
         const banner = field('.favorites-status');
         banner.hidden = !state.error;
         banner.querySelector('span').textContent = state.error;
-        field('[data-favorite-action="new-folder"]').innerHTML = `${icon('folder-plus')}<span>新建文件夹</span>`;
-        field('[data-favorite-action="new-bookmark"]').innerHTML = `${icon('plus')}<span>收藏链接</span>`;
         field('.favorites-mobile-folders').innerHTML = `${icon('folder')}<span>文件夹</span>`;
-        field('.favorite-sort-icon').innerHTML = icon('arrow-up-down');
         field('.favorite-search > span').innerHTML = icon('search');
-        field('.favorite-sort select').value = state.sort;
         field('.favorite-search input').value = state.query;
         drawFolders();
         drawRows();
@@ -194,7 +195,16 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
         const button = event.target.closest('[data-favorite-action]');
         if (!button || state.busy) return;
         const action = button.dataset.favoriteAction;
-        if (action === 'folder') {
+        if (action === 'sort-name' || action === 'sort-date') {
+            const key = action === 'sort-name' ? 'name' : 'date';
+            state.sort = state.sortBy === key ? (state.sort === 'asc' ? 'desc' : 'asc') : key === 'date' ? 'desc' : 'asc';
+            state.sortBy = key;
+            savePreference('favorites-sort', state.sort);
+            savePreference('favorites-sort-by', key);
+            hideMenu();
+            drawRows();
+            field('.favorite-list-scroll').scrollTop = 0;
+        } else if (action === 'folder') {
             state.folder = button.dataset.folder;
             savePreference('favorites-folder', state.folder);
             field('.favorites-body').classList.remove('folders-open');
@@ -212,7 +222,6 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
         else showDialog(action, null, button);
     });
     field('.favorite-search input').addEventListener('input', event => { state.query = event.target.value; hideMenu(); drawRows(); field('.favorite-list-scroll').scrollTop = 0; });
-    field('.favorite-sort select').addEventListener('change', event => { state.sort = event.target.value; savePreference('favorites-sort', state.sort); hideMenu(); drawRows(); field('.favorite-list-scroll').scrollTop = 0; });
     menu.addEventListener('click', event => {
         const button = event.target.closest('[data-menu-action]');
         if (button) showDialog(button.dataset.menuAction, Number(button.dataset.id), menuTrigger);
@@ -261,7 +270,7 @@ window.createFavorites = ({ api, icon, escape, target, isActive }) => {
             await refresh();
             if (isActive()) {
                 const savedRow = !isFolder && !deleting && page.querySelector(`.favorite-row[data-bookmark-id="${result.id}"] .favorite-more`);
-                (savedRow || field('[data-favorite-action="new-bookmark"]')).focus();
+                (savedRow || field('[data-favorite-action="sort-name"]')).focus();
             }
         } catch (error) { errorBox.textContent = friendlyError(error); errorBox.hidden = false; }
         finally { state.busy = false; form.removeAttribute('aria-busy'); controls.forEach(control => { control.disabled = false; }); }

@@ -1,23 +1,20 @@
 :root {
     --favorite-date: #697464;
-    --favorite-art: #d0d5c9;
     --favorite-line: #e1e4dc;
 }
 :root[data-theme="dark"] {
     --favorite-date: #a0aa9b;
-    --favorite-art: #49534b;
     --favorite-line: #414b42;
 }
 .system-favorites { margin-bottom: 14px; }
 .favorites-mode .main-content { padding: 0; overflow: hidden; }
+.favorites-mode .main-workspace::before { display: none; }
 .favorites-mode #editToggle { background: var(--bg-container); color: var(--text-sidebar); border-color: var(--border-color); }
 .favorites-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .favorites-page .lucide, .favorites-dialog .lucide, .favorite-menu .lucide { width: 20px; height: 20px; flex: 0 0 20px; }
 .favorites-page button, .favorites-dialog button, .favorite-menu button { -webkit-tap-highlight-color: transparent; }
-.favorites-page-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px 32px; border-bottom: 1px solid var(--border-color); }
+.favorites-page-header { display: flex; align-items: center; height: 106px; flex: 0 0 106px; padding: 24px 32px; border-bottom: 1px solid var(--border-color); }
 .favorites-page-header h1 { font-size: 28px; line-height: 1.25; font-weight: 700; letter-spacing: -.6px; }
-.favorites-page-header p { margin-top: 7px; font-size: 14px; color: var(--text-secondary); }
-.favorites-header-actions { display: flex; align-items: center; gap: 14px; }
 .favorite-primary, .favorite-secondary, .favorite-danger {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px;
     padding: 9px 14px; border-radius: 9px; border: 1px solid transparent; font-size: 14px; font-weight: 500; white-space: nowrap;
@@ -29,11 +26,11 @@
 .favorites-body { display: grid; grid-template-columns: 232px minmax(0, 1fr); flex: 1; min-height: 0; position: relative; }
 .favorites-folders { min-height: 0; padding: 20px 14px; border-right: 1px solid var(--border-color); background: var(--bg-sidebar); overflow-y: auto; }
 .favorites-folders-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 10px 12px; font-size: 14px; color: var(--text-secondary); }
-.favorite-folder-row { display: flex; align-items: center; min-width: 0; border-radius: 9px; margin-bottom: 5px; }
+.favorite-folder-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; align-items: center; min-width: 0; border-radius: 9px; margin-bottom: 5px; }
 .favorite-folder-row.active { background: var(--bg-sidebar-active); color: var(--accent-text); }
 .favorite-folder-select { min-width: 0; flex: 1; display: flex; align-items: center; gap: 11px; min-height: 44px; padding: 9px 10px; border: 0; border-radius: inherit; background: transparent; color: inherit; text-align: left; font-size: 14px; }
 .favorite-folder-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.favorite-folder-count { margin-left: auto; padding-left: 4px; font-size: 12px; color: var(--text-secondary); }
+.favorite-folder-count { flex-shrink: 0; min-width: 3ch; margin-left: auto; padding-left: 4px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-secondary); }
 .favorite-folder-more { display: grid; place-items: center; width: 26px; height: 36px; flex: 0 0 26px; margin-right: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--text-secondary); }
 .favorite-folder-more .lucide { width: 16px; height: 16px; }
 .favorites-workspace { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -46,21 +43,22 @@
 .favorites-folder-heading h2 { min-width: 0; font-size: 24px; line-height: 1.4; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .favorite-visible-count { flex-shrink: 0; font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
 .favorites-filters { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.favorite-sort, .favorite-search { min-width: 0; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 10px; min-height: 42px; }
-.favorite-sort { flex-shrink: 0; padding-left: 10px; gap: 4px; }
-.favorite-sort-icon, .favorite-search > span { display: flex; color: var(--text-secondary); }
-.favorite-sort select { width: 112px; font-size: 14px; border: 0; padding: 9px 6px; background: transparent; }
-.favorite-search { width: 240px; padding-left: 12px; gap: 7px; }
+.favorite-search { min-width: 0; display: flex; align-items: center; border: 1px solid var(--border-color); border-radius: 10px; min-height: 42px; width: 240px; padding-left: 12px; gap: 7px; }
+.favorite-search > span { display: flex; color: var(--text-secondary); }
 .favorite-search input { min-width: 0; font-size: 14px; border: 0; padding: 9px 10px 9px 0; background: transparent; }
+.favorite-search input:focus { outline: none; box-shadow: none; }
+.favorite-search:has(input:focus-visible) { background: var(--bg-sidebar-hover); }
 .favorite-list-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; isolation: isolate; overflow: hidden; }
-.favorite-list-stage::before {
-    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background: var(--favorite-art);
-    -webkit-mask: url('/assets/bookmarks/tiger-line.png') no-repeat right bottom / min(100%, 700px) auto;
-    mask: url('/assets/bookmarks/tiger-line.png') no-repeat right bottom / min(100%, 700px) auto;
-}
+.favorite-list-stage::before { z-index: -1; }
 .favorite-list-legend { display: grid; grid-template-columns: minmax(0, 1fr) 100px 36px; gap: 18px; padding: 4px 0 8px; font-size: 11px; color: var(--favorite-date); }
-.favorite-list-legend > span:nth-child(2) { text-align: right; }
+.favorite-column-sort { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; justify-self: start; }
+.favorite-column-sort:nth-child(2) { justify-self: end; }
+.favorite-column-sort .lucide { width: 13px; height: 13px; flex-basis: 13px; opacity: .6; }
+.favorite-column-sort[aria-pressed="true"] { color: var(--accent-text); }
+.favorite-column-sort.ascending > .lucide { transform: rotate(180deg); }
+.favorite-add-row { min-height: 56px; display: flex; align-items: center; padding: 8px 4px; }
+.favorite-add-link { width: 40px; height: 40px; }
+.favorite-add-link .lucide { width: 24px; height: 24px; flex-basis: 24px; }
 .favorite-list-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 28px 24px; scrollbar-gutter: stable; }
 .favorite-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px 36px; align-items: center; gap: 18px; min-height: 56px; border-bottom: 1px solid var(--favorite-line); border-radius: 6px; }
 .favorite-link { min-width: 0; display: flex; align-items: center; gap: 16px; min-height: 55px; padding: 8px 12px; color: var(--text-primary); text-decoration: none; }
@@ -113,11 +111,9 @@
 @media (max-width: 768px) {
     .system-favorites { margin: 0; }
     .favorites-mode .main-content { overflow: hidden; padding: 0; }
-    .favorites-page { height: calc(100dvh - 124px); min-height: 0; }
-    .favorites-page-header { padding: 18px 16px; gap: 14px; flex-wrap: wrap; }
+    .favorites-page { height: 100%; min-height: 0; }
+    .favorites-page-header { height: 68px; flex-basis: 68px; padding: 16px; }
     .favorites-page-header h1 { font-size: 22px; }
-    .favorites-page-header p { display: none; }
-    .favorites-header-actions { gap: 4px; }
     .favorite-primary, .favorite-secondary { font-size: 13px; padding: 8px 10px; min-height: 44px; }
     .favorites-body { display: flex; flex-direction: column; }
     .favorites-folders { display: none; position: absolute; z-index: 5; inset: 0 auto 0 0; width: min(280px, 85%); border-right: 1px solid var(--border-color); }
@@ -129,9 +125,7 @@
     .favorites-toolbar { margin-top: 0; gap: 12px; }
     .favorites-folder-heading h2 { font-size: 19px; }
     .favorites-folder-heading > .lucide { width: 22px; height: 22px; flex-basis: 22px; }
-    .favorite-sort select { width: 98px; font-size: 13px; }
-    .favorite-sort { padding-left: 8px; gap: 0; }
-    .favorite-sort .lucide, .favorite-search .lucide { width: 16px; height: 16px; flex-basis: 16px; }
+    .favorite-search .lucide { width: 16px; height: 16px; flex-basis: 16px; }
     .favorite-search { padding-left: 8px; gap: 5px; }
     .favorite-search input { padding-right: 5px; font-size: 14px; }
     .favorite-list-legend { grid-template-columns: minmax(0, 1fr) 76px 32px; gap: 8px; padding: 3px 0 6px; }

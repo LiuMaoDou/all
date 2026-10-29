@@ -57,7 +57,7 @@ Final comparison: no actionable P0/P1/P2 findings remain.
 
 ## Remaining coverage
 
-Browser interaction coverage is Chrome/Chromium. Safari and Firefox have not been separately exercised. No deployment or GitHub push was performed.
+Browser interaction coverage is Chrome/Chromium. Safari and Firefox have not been separately exercised. This report records local verification; deployment is outside its scope.
 
 ## Implementation checklist
 
@@ -66,3 +66,20 @@ Browser interaction coverage is Chrome/Chromium. Safari and Firefox have not bee
 - [x] Random persisted Lucide icons and fixed, theme-aware tiger background.
 - [x] Desktop/mobile, empty/error/retry, accessibility and existing-flow regression checks.
 - [x] Paired final reference comparison and actual local preview.
+
+## Follow-up: global backgrounds and streamlined controls
+
+The user's subsequent scoped instructions supersede the mock's old top-right action buttons, sort dropdown, and subtitle.
+
+- One shared theme-aware tiger mask now appears on tools, individual categories (including empty ones), and favorites. A fixed workspace layer sits outside the scrolling tool content; favorites retains its separate list-layer placement without duplicating the art. Mobile pages use an internal content scroller so the same fixed-background behavior applies.
+- Folder counts use a shared 30px action column and right-aligned tabular numerals, including system folders without menus. Hovering/opening menus does not shift counts.
+- Removed top-right folder/link buttons and subtitle. Folder creation remains on the folder-pane plus icon; bookmarks use a single plus icon below the list, including the empty state.
+- Native buttons on 收藏名称 and 添加日期 toggle ascending/descending ordering, expose their current state accessibly, and persist the selected sort field/direction. Date sorting defaults to newest-first when first selected.
+- Search input focus keeps the existing search-field styling without adding an extra focus outline. Keyboard focus uses a subtle background treatment.
+- Desktop header dividers align to the existing sidebar header; the content begins higher.
+
+Follow-up checks passed for light/dark at 320, 390, 768, 1024, and 1536px. Actual row coordinates change during scrolling while the artwork layer stays stationary. New plus-button dialogs, column sorting and persistence, search, folder menus/drawer, and existing favorites/tool CRUD flows passed. No horizontal or document-height overflow and no page runtime errors were observed. The 29 backend tests and JavaScript syntax checks also passed.
+
+Evidence: /Users/liumaodou/.codex/visualizations/2026/10/17/01a14a80-f0fb-7ba1-a998-32825b11b59f/final-refinements/results.json and favorites-1536-dark.png, favorites-1536-light.png, tools-1536-dark.png, favorites-390-light.png, tools-390-light.png. Folder-count geometry evidence is in the sibling favorites-count-alignment/results.json.
+
+Follow-up final result: passed

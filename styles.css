@@ -34,6 +34,7 @@
     --tooltip-bg: #3e4742;
     --tooltip-text: #f7f4ec;
     --tooltip-shadow: 0 8px 28px rgb(26 34 29 / 22%), 0 2px 6px rgb(26 34 29 / 15%);
+    --workspace-art: #d0d5c9;
 }
 
 :root[data-theme="dark"] {
@@ -71,6 +72,7 @@
     --tooltip-bg: #e2ddd2;
     --tooltip-text: #343d36;
     --tooltip-shadow: 0 10px 30px rgb(0 0 0 / 34%), 0 2px 8px rgb(0 0 0 / 24%);
+    --workspace-art: #49534b;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -152,7 +154,14 @@ textarea { resize: vertical; }
 .icon-btn.editing { background: var(--color-accent); color: var(--on-accent); border-color: var(--color-accent); }
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
-.main-content { flex: 1; min-width: 0; overflow-y: auto; padding: clamp(24px, 3vw, 40px); background: var(--bg-container); scrollbar-gutter: stable; }
+.main-workspace { position: relative; isolation: isolate; display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg-container); }
+.main-workspace::before, .favorite-list-stage::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--workspace-art);
+    -webkit-mask: url('/assets/bookmarks/tiger-line.png') no-repeat right bottom / min(100%, 700px) auto;
+    mask: url('/assets/bookmarks/tiger-line.png') no-repeat right bottom / min(100%, 700px) auto;
+}
+.main-workspace::before { z-index: 0; }
+.main-content { position: relative; z-index: 1; flex: 1; min-width: 0; min-height: 0; overflow-y: auto; padding: clamp(24px, 3vw, 40px); background: transparent; scrollbar-gutter: stable; }
 .content-wrapper { width: 100%; }
 .category-section { margin-bottom: 32px; }
 .category-section:last-child { margin-bottom: 0; }
@@ -261,8 +270,8 @@ body:has(.modal.show) { overflow: hidden; }
 
 @media (max-width: 768px) {
     body { display: block; padding: 0; }
-    .container { display: block; height: auto; min-height: 100dvh; overflow: visible; border: 0; border-radius: 0; box-shadow: none; }
-    .sidebar { position: sticky; top: 0; z-index: 100; width: 100%; border: 0; border-bottom: 1px solid var(--border-color); }
+    .container { flex-direction: column; height: 100dvh; min-height: 0; border: 0; border-radius: 0; box-shadow: none; }
+    .sidebar { position: sticky; top: 0; z-index: 100; width: 100%; flex: 0 0 auto; border: 0; border-bottom: 1px solid var(--border-color); }
     .sidebar-header { min-height: 68px; padding: 18px 124px 14px 16px; border: 0; text-align: left; }
     .sidebar-header h1 { font-size: 18px; overflow-wrap: anywhere; }
     .sidebar-header p { display: none; }
@@ -274,7 +283,7 @@ body:has(.modal.show) { overflow: hidden; }
     .nav-list .add-category { margin: 0; flex: 0 0 auto; flex-direction: row; }
     .nav-list .add-category input { width: 144px; min-height: 44px; }
     .nav-list .add-category button { width: 44px; min-height: 44px; }
-    .main-content { padding: 22px 16px 32px; overflow: visible; }
+    .main-content { padding: 22px 16px 32px; }
     .category-header { gap: 10px; margin-bottom: 14px; }
     .category-pill { padding: 6px 10px; }
     .category-pill h2 { font-size: 15px; }

@@ -30,11 +30,11 @@ Open [http://127.0.0.1:5231](http://127.0.0.1:5231). The same Flask application 
 
 ## 我的收藏
 
-Open the built-in sidebar entry or [http://127.0.0.1:5231/#favorites](http://127.0.0.1:5231/#favorites). Create folders, save a name and HTTP(S) URL, and use each row's menu to edit, move, or delete a link. “全部收藏” and “未分类” are virtual system folders. Deleting a custom folder moves its links into “未分类”.
+Open the built-in sidebar entry or [http://127.0.0.1:5231/#favorites](http://127.0.0.1:5231/#favorites). Use the folder pane’s plus icon to create folders and the plus icon below the bookmark list to save a name and HTTP(S) URL. Use each row’s menu to edit, move, or delete a link. “全部收藏” and “未分类” are virtual system folders. Deleting a custom folder moves its links into “未分类”.
 
-Favorites use the independent `favorites` and `favorite_folders` tables in the same SQLite database. Startup creates them without changing tool-directory records. Each new link receives a random bundled Lucide icon and a UTC creation timestamp; edits and moves preserve both. Dates display in the browser's local timezone. Name ordering uses Chinese pinyin, case-insensitive Latin ordering, and natural numeric comparison; ascending/descending choices and the selected folder persist locally. Search matches names and URLs within the selected folder.
+Favorites use the independent `favorites` and `favorite_folders` tables in the same SQLite database. Startup creates them without changing tool-directory records. Each new link receives a random bundled Lucide icon and a UTC creation timestamp; edits and moves preserve both. Dates display in the browser's local timezone. Click the 收藏名称 or 添加日期 column heading to switch sorting direction. Names use Chinese pinyin, case-insensitive Latin ordering, and natural numeric comparison; dates use creation timestamps. The selected sort field, direction, and folder persist locally. Search matches names and URLs within the selected folder.
 
-The background is a transparent tiger line-art asset recolored through a CSS alpha mask for light and dark themes. It sits outside the link-list scroll container, so the artwork stays fixed while the rows scroll. On small screens the folder pane opens as a drawer. As with the existing tool directory, favorites follow this application's shared editing model.
+All tool-category pages and My Favorites share the transparent tiger line-art asset, recolored through a CSS alpha mask for light and dark themes. The artwork sits outside each content scroll container, so it stays fixed while cards or bookmark rows scroll, including on small screens. The favorites folder pane opens as a mobile drawer. As with the existing tool directory, favorites follow this application's shared editing model.
 
 | Method and path | Favorites behavior |
 | --- | --- |
