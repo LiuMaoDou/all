@@ -209,9 +209,9 @@ function renderTools() {
                 }).join('')}
                 ${isEditMode ? `<form class="tool-card add-tool-card show">
                     <div class="logo-input-row">
-                        <input name="logo" placeholder="Logo（Emoji / URL）" aria-label="工具 Logo">
-                        <label class="upload-btn" role="button" tabindex="0" aria-label="上传 Logo 图片">
-                            <span class="upload-label">📷 上传</span>
+                        <input type="hidden" name="logo">
+                        <label class="upload-btn" role="button" tabindex="0" aria-label="上传 Logo 图片" title="上传 Logo 图片">
+                            <span class="upload-label">+</span>
                             <input type="file" class="logo-file" accept=".png,.jpg,.jpeg,.gif,.webp,.svg,.ico" style="display:none;">
                         </label>
                     </div>
@@ -434,6 +434,13 @@ document.addEventListener('submit', async event => {
     }
 });
 
+document.addEventListener('reset', event => {
+    const form = event.target;
+    if (!form.matches('.add-tool-card')) return;
+    form.querySelector('input[name=logo]').value = '';
+    form.querySelector('.logo-preview').replaceChildren();
+});
+
 document.addEventListener('change', async event => {
     const input = event.target;
     if (!input.matches('.category-rename-input') || pending) return;
@@ -498,6 +505,8 @@ document.addEventListener('change', async event => {
     const textInput = row?.querySelector('input[name=logo], #editLogo');
     const preview = row?.parentElement.querySelector('.logo-preview, #logoPreview');
     const label = row?.querySelector('.upload-label, #uploadLabel');
+    const button = input.closest('.upload-btn');
+    const originalLabel = label?.textContent;
     const file = input.files[0];
     if (!file || pending) return;
     if (file.size > 5 * 1024 * 1024 - 1024) {
@@ -510,7 +519,9 @@ document.addEventListener('change', async event => {
     const scope = row?.closest('form, .modal-content') || $('editForm');
     const controls = [...scope.querySelectorAll('button, input, textarea, select')];
     controls.forEach(control => { control.disabled = true; });
-    if (label) label.textContent = '⏳ 上传中…';
+    button?.setAttribute('aria-busy', 'true');
+    button?.setAttribute('aria-disabled', 'true');
+    if (label?.id === 'uploadLabel') label.textContent = '⏳ 上传中…';
     try {
         const body = new FormData();
         body.append('file', file);
@@ -521,7 +532,9 @@ document.addEventListener('change', async event => {
         showError(error);
     } finally {
         controls.forEach(control => { control.disabled = false; });
-        if (label) label.textContent = '📷 上传';
+        if (label) label.textContent = originalLabel;
+        button?.removeAttribute('aria-busy');
+        button?.removeAttribute('aria-disabled');
         input.value = '';
         pending = false;
     }

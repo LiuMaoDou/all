@@ -176,13 +176,14 @@ textarea { resize: vertical; }
 .sort-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .sort-btn { display: grid; place-items: center; border: 0; border-radius: 6px; width: 30px; height: 30px; background: transparent; color: var(--accent-text); font-size: 11px; }
 .category-rename-input { width: 155px; padding: 4px 2px; background: transparent; color: var(--accent-text); font-size: 15px; font-weight: 600; border: 0; border-bottom: 1px dashed var(--input-border); border-radius: 0; }
-.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, min(220px, 100%)); align-items: start; gap: 16px; }
+.tools-grid { display: grid; grid-template-columns: repeat(auto-fill, min(165px, 100%)); align-items: start; gap: 16px; }
+body.edit-mode .tools-grid { grid-template-columns: repeat(auto-fill, min(220px, 100%)); }
 .tool-card {
     min-width: 0; position: relative; display: flex; flex-direction: column;
     background: var(--tool-bg); border: 1px solid var(--tool-border); border-radius: 14px; box-shadow: var(--card-shadow);
 }
 .tool-card-body {
-    display: flex; align-items: center; gap: 12px; height: 78px; flex: 0 0 78px; min-width: 0; padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px; height: 58px; flex: 0 0 58px; min-width: 0; padding: 6px 10px;
     color: inherit; text-decoration: none; border-radius: inherit;
 }
 .tool-logo { width: 42px; height: 42px; flex: 0 0 42px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 9px; }
@@ -190,8 +191,8 @@ textarea { resize: vertical; }
 .tool-logo-emoji { font-size: 27px; line-height: 1; }
 .tool-content { min-width: 0; flex: 1; }
 .tool-name, .tool-description { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tool-name { font-size: 15px; line-height: 1.5; font-weight: 650; margin-bottom: 5px; }
-.tool-description { font-size: 13px; line-height: 1.6; color: var(--text-secondary); }
+.tool-name { font-size: 15px; line-height: 1.35; font-weight: 650; margin-bottom: 1px; }
+.tool-description { font-size: 13px; line-height: 1.4; color: var(--text-secondary); }
 .tool-description:empty { display: none; }
 .tool-name:has(+ .tool-description:empty) { margin-bottom: 0; }
 .tool-card:focus-within { z-index: 5; }
@@ -223,7 +224,7 @@ textarea { resize: vertical; }
 .add-tool-card input, .add-tool-card textarea { font-size: 13px; }
 .add-tool-card textarea { min-height: 74px; }
 .add-tool-card .logo-input-row { gap: 6px; }
-.add-tool-card .upload-btn { min-height: 40px; padding: 8px 10px; font-size: 13px; }
+.add-tool-card .upload-btn { width: 100%; height: 44px; min-height: 44px; padding: 0; font-size: 24px; font-weight: 400; line-height: 1; }
 .add-tool-card .logo-preview:empty, .add-tool-card .logo-preview[hidden] { display: none; }
 .add-tool-card .logo-preview { display: flex; align-items: center; }
 .add-tool-card .logo-preview img { width: 42px; height: 42px; object-fit: contain; border-radius: 8px; }
@@ -245,6 +246,7 @@ body:has(.modal.show) { overflow: hidden; }
 .logo-input-row { display: flex; gap: 8px; align-items: center; }
 .logo-input-row > input { flex: 1; }
 .upload-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-height: 44px; padding: 10px 14px; border-radius: 8px; cursor: pointer; background: var(--color-accent); color: var(--on-accent); font-size: 14px; font-weight: 550; white-space: nowrap; }
+.upload-btn[aria-busy="true"] { opacity: .6; cursor: wait; }
 #logoPreview { margin-top: 10px; }
 #logoPreview img { object-fit: contain; border-radius: 8px; }
 #logoPreview .tool-logo-emoji { font-size: 27px; line-height: 1; }
@@ -288,7 +290,8 @@ body:has(.modal.show) { overflow: hidden; }
     .category-pill { padding: 6px 10px; }
     .category-pill h2 { font-size: 15px; }
     .category-section { margin-bottom: 28px; }
-    .tools-grid { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+    .tools-grid { grid-template-columns: repeat(auto-fill, minmax(min(165px, 100%), 1fr)); gap: 12px; }
+    body.edit-mode .tools-grid { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
     .tool-name { font-size: 14px; }
     .tool-description { font-size: 12px; }
     .category-rename-input { width: 125px; }
