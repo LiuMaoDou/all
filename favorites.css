@@ -13,8 +13,7 @@
 .favorites-page { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .favorites-page .lucide, .favorites-dialog .lucide, .favorite-menu .lucide { width: 20px; height: 20px; flex: 0 0 20px; }
 .favorites-page button, .favorites-dialog button, .favorite-menu button { -webkit-tap-highlight-color: transparent; }
-.favorites-page-header { display: flex; align-items: center; height: var(--shell-header-height); flex: 0 0 var(--shell-header-height); padding: 24px 32px; border-bottom: 1px solid var(--border-color); }
-.favorites-page-header h1 { font-size: var(--font-size-title); line-height: var(--line-height-heading); font-weight: var(--font-weight-bold); }
+.favorites-page-header { padding: 24px 32px; }
 .favorite-primary, .favorite-secondary, .favorite-danger {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px;
     padding: 9px 14px; border-radius: 9px; border: 1px solid transparent; font-size: var(--font-size-body); font-weight: var(--font-weight-medium); white-space: nowrap;
@@ -113,7 +112,7 @@
     .system-favorites { margin: 0; }
     .favorites-mode .main-content { overflow: hidden; padding: 0; }
     .favorites-page { height: 100%; min-height: 0; }
-    .favorites-page-header { height: 68px; flex-basis: 68px; padding: 16px; }
+    .favorites-page-header { padding: 16px; }
     .favorite-primary, .favorite-secondary { padding: 8px 10px; min-height: 44px; }
     .favorites-body { display: flex; flex-direction: column; }
     .favorites-folders { display: none; position: absolute; z-index: 5; inset: 0 auto 0 0; width: min(280px, 85%); border-right: 1px solid var(--border-color); }
